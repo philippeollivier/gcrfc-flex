@@ -194,12 +194,14 @@
     chart.addEventListener("pointercancel", hideTip);
   }
 
+  /* no-store: rank data changes between deploys; a cached copy here can
+     disagree with the page and leave table cells empty */
   Promise.all([
-    fetch("data/ranks.jsonl").then((resp) => {
+    fetch("data/ranks.jsonl", { cache: "no-store" }).then((resp) => {
       if (!resp.ok) throw new Error(resp.status);
       return resp.text();
     }),
-    fetch("data/players.json").then((resp) => {
+    fetch("data/players.json", { cache: "no-store" }).then((resp) => {
       if (!resp.ok) throw new Error(resp.status);
       return resp.json();
     }),
