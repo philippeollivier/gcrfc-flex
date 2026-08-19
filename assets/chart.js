@@ -47,6 +47,12 @@
     `${anchor ? ` text-anchor="${anchor}"` : ""} font-family="Helvetica Neue, Arial, sans-serif">${content}</text>`;
 
   function draw(rows) {
+    const lastDate = rows.map((row) => row.date).sort().pop();
+    rows.filter((row) => row.date === lastDate).forEach((row) => {
+      const cell = document.querySelector(`[data-flex-for="${row.name}"]`);
+      if (cell) cell.textContent = row.flex ? rankText(row.flex) : "Unranked";
+    });
+
     const flexRows = rows.filter((row) => row.flex);
     if (!flexRows.length) return;
 
