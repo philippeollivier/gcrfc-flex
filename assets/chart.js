@@ -11,11 +11,11 @@
     "diamond", "master", "grandmaster", "challenger"];
   const SHORT_MONTHS = ["Jan.", "Feb.", "March", "April", "May", "June",
     "July", "Aug.", "Sept.", "Oct.", "Nov.", "Dec."];
-  const STYLES = [
-    [BLUE, null], [INK, null], [GREY, null],
-    [BLUE, "5 3"], [INK, "5 3"], [GREY, "5 3"],
-    [BLUE, "1 3"], [INK, "1 3"], [GREY, "1 3"],
-  ];
+  /* Sweetie 16 (lospec.com/palette-list/sweetie-16), the hues that stay
+     readable on the #fdfdfd background; red is reserved for the goal line */
+  const COLOURS = ["#3b5dc9", "#38b764", "#ef7d57", "#5d275d",
+    "#257179", "#41a6f6", "#566c86", "#94b0c2"];
+  const GOAL_COLOUR = "#b13e53";
 
   const chart = document.querySelector("#chart");
   if (!chart) return;
@@ -78,10 +78,11 @@
       updated.dataset.copy = latest;
     }
 
-    const left = 76, right = 24, top = 18, bottom = 190, height = 228;
+    const left = 76, right = 48, top = 18, bottom = 190, height = 228;
+    const goal = TIERS.indexOf("master") * 400;
     const values = byPlayer.flatMap((p) => p.points.map((pt) => pt.value));
     const low = Math.floor((Math.min(...values) - 60) / 100) * 100;
-    const high = Math.ceil((Math.max(...values) + 60) / 100) * 100;
+    const high = Math.max(Math.ceil((Math.max(...values) + 60) / 100) * 100, goal);
     const y = (v) => bottom - ((v - low) / (high - low)) * (bottom - top);
     const first = toDate(dates[0]).getTime();
     const span = Math.max(toDate(latest).getTime() - first, 86400000);
@@ -90,21 +91,24 @@
     let markup = "";
     for (let v = low; v <= high; v += 100) {
       const boundary = v % 400 === 0;
+      const isGoal = v === goal;
       markup += `<line x1="${left}" y1="${y(v)}" x2="${VIEW_WIDTH - right}" y2="${y(v)}"` +
-        ` stroke="${boundary ? GREY : RULE}" stroke-width="1"/>`;
-      const tier = TIERS[Math.floor(v / 400)];
-      const division = 4 - ((v % 400) / 100);
-      const label = boundary
-        ? tier[0].toUpperCase() + tier.slice(1)
-        : (division < 4 ? `${tier[0].toUpperCase() + tier.slice(1)} ${division}` : "");
-      if (label) markup += svgText(left - 8, y(v) + 3.5, 9, GREY, "end", label);
+        ` stroke="${isGoal ? GOAL_COLOUR : (boundary ? GREY : RULE)}" stroke-width="${isGoal ? 1.5 : 1}"/>`;
+      if (boundary) {
+        const tier = TIERS[v / 400];
+        markup += svgText(left - 8, y(v) + 3.5, 9, isGoal ? GOAL_COLOUR : GREY, "end",
+          tier[0].toUpperCase() + tier.slice(1));
+      }
+      if (isGoal) {
+        markup += svgText(VIEW_WIDTH - right + 8, y(v) + 3.5, 10, GOAL_COLOUR, null,
+          "<tspan font-weight='bold'>GOAL</tspan>");
+      }
     }
 
     byPlayer.forEach((player, i) => {
-      const [colour, dash] = STYLES[i % STYLES.length];
+      const colour = COLOURS[i % COLOURS.length];
       const points = player.points.map((pt) => `${x(pt.date)},${y(pt.value)}`).join(" ");
-      markup += `<polyline points="${points}" fill="none" stroke="${colour}" stroke-width="1.5"` +
-        `${dash ? ` stroke-dasharray="${dash}"` : ""}/>`;
+      markup += `<polyline points="${points}" fill="none" stroke="${colour}" stroke-width="1.5"/>`;
       player.points.forEach((pt) => {
         markup += `<circle cx="${x(pt.date)}" cy="${y(pt.value)}" r="2.8" fill="${colour}"/>`;
       });
@@ -119,10 +123,9 @@
 
     keys.innerHTML = byPlayer
       .map((player, i) => {
-        const [colour, dash] = STYLES[i % STYLES.length];
+        const colour = COLOURS[i % COLOURS.length];
         return `<li><svg viewBox="0 0 40 10" aria-hidden="true"><line x1="0" y1="5" x2="40" y2="5"` +
-          ` stroke="${colour}" stroke-width="2"${dash ? ` stroke-dasharray="${dash}"` : ""}/></svg>` +
-          `${player.name}</li>`;
+          ` stroke="${colour}" stroke-width="2"/></svg>${player.name}</li>`;
       })
       .join("");
 
