@@ -46,18 +46,22 @@
     `<text x="${x}" y="${y}" font-size="${size}" fill="${fill}"` +
     `${anchor ? ` text-anchor="${anchor}"` : ""} font-family="Helvetica Neue, Arial, sans-serif">${content}</text>`;
 
-  function draw(rows) {
+  function draw(rows, roster) {
     const lastDate = rows.map((row) => row.date).sort().pop();
     rows.filter((row) => row.date === lastDate).forEach((row) => {
       const cell = document.querySelector(`[data-flex-for="${row.name}"]`);
       if (cell) cell.textContent = row.flex ? rankText(row.flex) : "Unranked";
     });
 
-    const flexRows = rows.filter((row) => row.flex);
+    /* Substitutes stay in the roster table but out of the chart. */
+    const charted = roster
+      .filter((player) => !player.roles.includes("substitute"))
+      .map((player) => player.name);
+    const flexRows = rows.filter((row) => row.flex && charted.includes(row.name));
     if (!flexRows.length) return;
 
     const dates = [...new Set(flexRows.map((row) => row.date))].sort();
-    const players = [...new Set(flexRows.map((row) => row.name))];
+    const players = charted.filter((name) => flexRows.some((row) => row.name === name));
     const byPlayer = players.map((name) => ({
       name,
       points: dates
@@ -190,14 +194,19 @@
     chart.addEventListener("pointercancel", hideTip);
   }
 
-  fetch("data/ranks.jsonl")
-    .then((resp) => {
+  Promise.all([
+    fetch("data/ranks.jsonl").then((resp) => {
       if (!resp.ok) throw new Error(resp.status);
       return resp.text();
-    })
-    .then((text) => {
+    }),
+    fetch("data/players.json").then((resp) => {
+      if (!resp.ok) throw new Error(resp.status);
+      return resp.json();
+    }),
+  ])
+    .then(([text, roster]) => {
       const rows = text.trim().split("\n").filter(Boolean).map((line) => JSON.parse(line));
-      draw(rows);
+      draw(rows, roster);
     })
     .catch(() => {
       caption.textContent = "Rank data could not be loaded.";

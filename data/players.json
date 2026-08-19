@@ -3,8 +3,8 @@
   { "name": "Adriene", "slug": "99atst-NA1", "region": "na", "roles": "Jungle" },
   { "name": "Matthew", "slug": "DasLlamaMan-NA1", "region": "na", "roles": "Mid, Jungle" },
   { "name": "Manuel", "slug": "Fatcat98-NA1", "region": "na", "roles": "Top, Mid" },
-  { "name": "Ereeca", "slug": "Faitsu-NA1", "region": "na", "roles": "Support, Bot" },
-  { "name": "Dave the duck", "slug": "songd-NA1", "region": "na", "roles": "Support, Bot" },
+  { "name": "Erica", "slug": "Faitsu-NA1", "region": "na", "roles": "Support, Bot" },
+  { "name": "David", "slug": "songd-NA1", "region": "na", "roles": "Support, Bot" },
   { "name": "Evan", "slug": "ikkacu-NA1", "region": "na", "roles": "Bot (substitute)" },
   { "name": "Kevin", "slug": "Ranger501-NA1", "region": "na", "roles": "Top (substitute)" }
 ]
