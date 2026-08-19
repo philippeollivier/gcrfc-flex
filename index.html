@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="description" content="GCRFC ranked flex team." />
     <title>GCRFC Flex</title>
+    <link rel="icon" type="image/png" href="assets/favicon.png" />
     <link rel="stylesheet" href="assets/style.css" />
   </head>
   <body>
@@ -16,17 +17,24 @@
         <strong>contents</strong>
       </nav>
       <article>
+        <section aria-labelledby="ranks">
+          <h2 id="ranks">Flex ranks</h2>
+          <figure class="chart">
+            <svg id="chart" role="img" aria-label="Flex rank of every player over time"></svg>
+            <div class="chart-tip" role="status" aria-live="off"></div>
+            <ul class="chart-keys"></ul>
+            <figcaption></figcaption>
+          </figure>
+        </section>
+
         <section aria-labelledby="roster">
           <h2 id="roster">Roster</h2>
-          <p>
-            Flex ranks from op.gg, <time datetime="2026-08-19"></time>.
-          </p>
           <table>
             <thead>
               <tr>
                 <th>Player</th>
                 <th>Roles</th>
-                <th>Flex rank</th>
+                <th>Flex rank (last updated <time id="ranks-updated"></time>)</th>
               </tr>
             </thead>
             <tbody>
@@ -77,5 +85,6 @@
     </main>
     <footer aria-hidden="true"></footer>
     <script src="assets/site.js"></script>
+    <script src="assets/chart.js"></script>
   </body>
 </html>
