@@ -427,3 +427,7 @@ html {
     display: none;
   }
 }
+
+      mark.blue::before {
+        background: #b9dcf9;
+      }
