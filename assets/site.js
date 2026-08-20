@@ -126,3 +126,22 @@ const DATE_ONLY = /^\d{4}-\d{2}-\d{2}$/;
         window.addEventListener("resize", updateCurrentSection);
         updateCurrentSection();
       }
+
+(() => {
+  const noteNumbers = new Map();
+  document.querySelectorAll("a.note-ref[href^='#']").forEach((reference) => {
+    const precedingText = reference.previousSibling?.textContent ?? "";
+    if (/\S$/.test(precedingText)) reference.before(" ");
+
+    const noteId = reference.getAttribute("href").slice(1);
+    if (!noteNumbers.has(noteId)) noteNumbers.set(noteId, noteNumbers.size + 1);
+    const number = noteNumbers.get(noteId);
+    reference.textContent = `[${number}]`;
+    const note = document.getElementById(noteId);
+    if (note) note.dataset.noteNumber = number;
+  });
+
+  document.querySelectorAll(".notes > li").forEach((note) => {
+    if (!note.dataset.noteNumber) note.dataset.noteNumber = "?";
+  });
+})();

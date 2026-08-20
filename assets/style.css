@@ -123,6 +123,7 @@ html {
         position: relative;
         z-index: 0;
         display: inline-block;
+        background: transparent;
         color: inherit;
       }
 
@@ -431,3 +432,38 @@ html {
       mark.blue::before {
         background: #73eff7;
       }
+
+.note-ref {
+  color: #1a1a1a;
+  text-decoration: underline;
+  text-underline-offset: 0.15em;
+  white-space: nowrap;
+}
+
+.note-ref:link,
+.note-ref:visited,
+.note-ref:active {
+  color: #1a1a1a;
+}
+
+.notes {
+  padding-left: 0;
+  list-style: none;
+}
+
+.notes > li {
+  position: relative;
+  margin: 1.5em 0;
+  padding-left: 2.6em;
+}
+
+.notes > li::before {
+  content: "[" attr(data-note-number) "]";
+  position: absolute;
+  left: 0;
+  font-variant-numeric: lining-nums tabular-nums;
+}
+
+.notes > li:target::before {
+  font-weight: bold;
+}
