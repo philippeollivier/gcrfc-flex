@@ -57,10 +57,7 @@
       const name = cell.dataset.matchesFor;
       const games = matches.filter((m) => m.name === name && m.queue === "flex");
       const wins = games.filter((g) => g.win).length;
-      const label = games.length
-        ? `${games.length} game${games.length === 1 ? "" : "s"} (${wins}W ${games.length - wins}L)`
-        : "No games yet";
-      cell.innerHTML = `<a href="matches/${name.toLowerCase()}.html">${label}</a>`;
+      cell.innerHTML = `<a href="matches/${name.toLowerCase()}.html">(${wins}W ${games.length - wins}L)</a>`;
     });
   }
 
