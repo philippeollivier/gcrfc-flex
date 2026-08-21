@@ -1,10 +1,58 @@
 [
-  { "name": "Phil", "slug": "Animbot-naeuk", "region": "na", "roles": "Bot, Top" },
-  { "name": "Adriene", "slug": "99atst-NA1", "region": "na", "roles": "Jungle" },
-  { "name": "Matthew", "slug": "DasLlamaMan-NA1", "region": "na", "roles": "Mid, Jungle" },
-  { "name": "Manuel", "slug": "Fatcat98-NA1", "region": "na", "roles": "Top, Mid" },
-  { "name": "Erica", "slug": "Faitsu-NA1", "region": "na", "roles": "Support, Bot" },
-  { "name": "David", "slug": "songd-NA1", "region": "na", "roles": "Support, Bot" },
-  { "name": "Evan", "slug": "ikkacu-NA1", "region": "na", "roles": "Bot (substitute)" },
-  { "name": "Kevin", "slug": "Ranger501-NA1", "region": "na", "roles": "Top (substitute)" }
+  {
+    "name": "Phil",
+    "slug": "Animbot-naeuk",
+    "region": "na",
+    "roles": "Bot, Top",
+    "puuid": "Q_hIvE8x_MAb2h0xF13mlVSOlw1fc-_wMJ4Ly1KfFZ-8Yz1ur7EEpF24RZ_M9Ldpq6rD71drGZH13Q"
+  },
+  {
+    "name": "Adriene",
+    "slug": "99atst-NA1",
+    "region": "na",
+    "roles": "Jungle",
+    "puuid": "EEH7bszMunCueddYtidRAPxvJBVx2D4m99ae8n8PZ34uFjgM6dtM_3pLO4rxAzAKLKUQL__3GSr4PQ"
+  },
+  {
+    "name": "Matthew",
+    "slug": "DasLlamaMan-NA1",
+    "region": "na",
+    "roles": "Mid, Jungle",
+    "puuid": "Krj-IdSsSXyuJopDj3p8l3qa3187M8ElXk4ax8S9i3FQsB4BNlUMZwj-FloCrIchpZZeR2Lg_t9lBw"
+  },
+  {
+    "name": "Manuel",
+    "slug": "Fatcat98-NA1",
+    "region": "na",
+    "roles": "Top, Mid",
+    "puuid": "427KwfO077ZdcQMIh-WIJU_bzz6mWCit7Lwh2zj2VBAHADx4A_RUNDbAwdjDOWfAICOA7DdF3IrX7w"
+  },
+  {
+    "name": "Erica",
+    "slug": "Faitsu-NA1",
+    "region": "na",
+    "roles": "Support, Bot",
+    "puuid": "MKpBqeUWv6jM6Mhas4v4acjLAvFt8CVmceOkmQAzsTpaLhnYk3iuvBbGpJLzSKoJpLGMDc4PqxPgyA"
+  },
+  {
+    "name": "David",
+    "slug": "songd-NA1",
+    "region": "na",
+    "roles": "Support, Bot",
+    "puuid": "fUJ2_ll4-vUoRe92kTAlv8mY-cbIM2t9ERcwsqE0r4BGpMfc9p_0jTrjoFjVHKdkUXPk3SvzXgD4tw"
+  },
+  {
+    "name": "Evan",
+    "slug": "ikkacu-NA1",
+    "region": "na",
+    "roles": "Bot (substitute)",
+    "puuid": "SmE_pLZVCQ4dkWw7BbxE7IOkBFceu2I34JlfGNIfwu-lhRKV6bbaaMNUi6wFrIqwf6S_m5Bz3VW0sA"
+  },
+  {
+    "name": "Kevin",
+    "slug": "Ranger501-NA1",
+    "region": "na",
+    "roles": "Top (substitute)",
+    "puuid": "rSO_-P65goJOxN6tkXXUNXdnK6yH9EpMlyjjABXTMLWlYuKT9wUQSGKNwVcnfV5wsgpuEq6d9pUfNA"
+  }
 ]

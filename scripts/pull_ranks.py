@@ -1,69 +1,57 @@
-#!/usr/bin/env python3
-"""Pull current ranks for every player in data/players.json from op.gg
-and append one snapshot row per player to data/ranks.jsonl.
+"""Snapshot every roster player's ranked standing via the Riot API.
 
-Usage:
-  scripts/pull_ranks.py            # fetch, print, append to data/ranks.jsonl
-  scripts/pull_ranks.py --dry-run  # fetch and print only
+Appends one row per player for today to data/ranks.jsonl (a same-day re-run
+replaces that day's rows). Caches each player's puuid in data/players.json.
 
-Stdlib only. op.gg server-renders the rank cards, so a plain GET is enough;
-if op.gg changes its markup the regexes below are what to fix.
+    export RIOT_API_KEY=RGAPI-...
+    python3 scripts/pull_ranks.py            # write rows
+    python3 scripts/pull_ranks.py --dry-run  # fetch and print only
 """
-
 import argparse
 import datetime
 import json
-import re
+import pathlib
 import sys
-import time
-import urllib.request
-from pathlib import Path
 
-REPO = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
+from riot_api import Riot, split_riot_id  # noqa: E402
+
+REPO = pathlib.Path(__file__).resolve().parent.parent
 PLAYERS = REPO / "data" / "players.json"
 RANKS = REPO / "data" / "ranks.jsonl"
-
-USER_AGENT = (
-    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36"
-)
-QUEUES = {"flex": "Ranked Flex", "solo": "Ranked Solo/Duo"}
+QUEUES = {"flex": "RANKED_FLEX_SR", "solo": "RANKED_SOLO_5x5"}
+DIVISIONS = {"I": 1, "II": 2, "III": 3, "IV": 4}
+APEX = {"MASTER", "GRANDMASTER", "CHALLENGER"}
 
 
-def fetch(url):
-    req = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
-    with urllib.request.urlopen(req, timeout=30) as resp:
-        return resp.read().decode("utf-8", errors="replace")
+def ensure_puuids(riot, players):
+    changed = False
+    for player in players:
+        if not player.get("puuid"):
+            name, tag = split_riot_id(player["slug"])
+            player["puuid"] = riot.puuid(name, tag, player.get("region", "na"))
+            changed = True
+    if changed:
+        PLAYERS.write_text(json.dumps(players, indent=2) + "\n")
+    return players
 
 
-def parse_queue(doc, label):
-    """Return {tier, division, lp, wins, losses} or None if unranked."""
-    # Rank cards are headed by `<span>Ranked Flex</span><svg ...` (the same
-    # label also appears in nav links / dropdowns, which lack the svg).
-    for m in re.finditer("<span>" + re.escape(label) + "</span><svg", doc):
-        window = doc[m.end() : m.end() + 2500]
-        rank = re.search(
-            r'<strong class="text-xl">([A-Za-z]+) ?(\d?)</strong>'
-            r'<span[^>]*>(\d+) LP</span>',
-            window,
-        )
-        if rank:
-            wl = re.search(r"(\d+)W (\d+)L", window)
-            return {
-                "tier": rank.group(1).lower(),
-                "division": int(rank.group(2)) if rank.group(2) else None,
-                "lp": int(rank.group(3)),
-                "wins": int(wl.group(1)) if wl else None,
-                "losses": int(wl.group(2)) if wl else None,
-            }
-        if "Unranked" in window[:800]:
-            return None
-    return None
+def entry_to_rank(entry):
+    if not entry:
+        return None
+    tier = entry["tier"]
+    return {
+        "tier": tier.lower(),
+        "division": None if tier in APEX else DIVISIONS[entry["rank"]],
+        "lp": entry["leaguePoints"],
+        "wins": entry["wins"],
+        "losses": entry["losses"],
+    }
 
 
-def pull(player):
-    url = f"https://op.gg/lol/summoners/{player['region']}/{player['slug']}"
-    doc = fetch(url).replace("<!-- -->", "")
-    return {q: parse_queue(doc, label) for q, label in QUEUES.items()}
+def pull(riot, player):
+    entries = {e["queueType"]: e for e in riot.league_entries(player["puuid"], player.get("region", "na"))}
+    return {q: entry_to_rank(entries.get(qt)) for q, qt in QUEUES.items()}
 
 
 def fmt(rank):
@@ -78,18 +66,18 @@ def main():
     ap.add_argument("--dry-run", action="store_true", help="fetch and print only")
     args = ap.parse_args()
 
-    players = json.loads(PLAYERS.read_text())
+    riot = Riot()
+    players = ensure_puuids(riot, json.loads(PLAYERS.read_text()))
     date = datetime.date.today().isoformat()
     rows = []
     for player in players:
         try:
-            queues = pull(player)
+            queues = pull(riot, player)
         except Exception as err:
             print(f"{player['name']:>14}: FAILED ({err})", file=sys.stderr)
             continue
         rows.append({"date": date, "name": player["name"], **queues})
         print(f"{player['name']:>14}: flex {fmt(queues['flex']):<38} solo {fmt(queues['solo'])}")
-        time.sleep(1)
 
     if args.dry_run:
         return

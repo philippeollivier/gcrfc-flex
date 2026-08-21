@@ -19,14 +19,18 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Pull ranks from op.gg
-        run: python3 scripts/pull_ranks.py
+      - name: Pull ranks and matches from the Riot API
+        env:
+          RIOT_API_KEY: ${{ secrets.RIOT_API_KEY }}
+        run: |
+          python3 scripts/pull_ranks.py
+          python3 scripts/pull_matches.py
 
       - name: Commit and push
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add data/ranks.jsonl
+          git add data/
           git diff --cached --quiet && { echo "No new rows"; exit 0; }
-          git commit -m "Ranks $(date -u +%F)"
+          git commit -m "Ranks and matches $(date -u +%F)"
           git push
