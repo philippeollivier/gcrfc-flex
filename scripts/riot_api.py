@@ -83,6 +83,9 @@ class Riot:
     def match(self, match_id, region="na"):
         return self.get(ROUTING[region][1], f"/lol/match/v5/matches/{match_id}")
 
+    def timeline(self, match_id, region="na"):
+        return self.get(ROUTING[region][1], f"/lol/match/v5/matches/{match_id}/timeline")
+
 
 def split_riot_id(slug):
     """'Animbot-naeuk' -> ('Animbot', 'naeuk'); tag is after the last '-'."""

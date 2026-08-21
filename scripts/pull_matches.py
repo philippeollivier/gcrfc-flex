@@ -2,9 +2,11 @@
 
 Writes one row per (match, player) to data/matches.jsonl, covering Ranked
 Flex (queue 440) and Ranked Solo/Duo (420) played since SINCE. For every
-Flex game it also stores Riot's complete match-v5 payload as
-data/matches/<matchId>.json. Already recorded games are skipped, so it is
-safe to run daily. A game several roster players shared is fetched once
+Flex game it also stores:
+  data/matches/<matchId>.json        Riot's complete match-v5 payload
+  data/timelines/<matchId>.json      the match-v5 timeline (per-minute frames, events)
+  data/matches/<matchId>.ranks.json  every participant's ranked standing at pull time
+Already stored files are skipped, so it is safe to run daily. A game several roster players shared is fetched once
 and recorded once per player.
 
     export RIOT_API_KEY=RGAPI-...
@@ -19,12 +21,13 @@ import sys
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 from riot_api import Riot  # noqa: E402
-from pull_ranks import ensure_puuids  # noqa: E402
+from pull_ranks import ensure_puuids, entry_to_rank  # noqa: E402
 
 REPO = pathlib.Path(__file__).resolve().parent.parent
 PLAYERS = REPO / "data" / "players.json"
 MATCHES = REPO / "data" / "matches.jsonl"
 RAW = REPO / "data" / "matches"  # full match-v5 JSON, Flex games only
+TIMELINES = REPO / "data" / "timelines"
 FULL_QUEUES = {440}
 SINCE = datetime.datetime(2026, 8, 19, tzinfo=datetime.timezone.utc)  # tracking start
 QUEUES = {440: "flex", 420: "solo"}
@@ -80,23 +83,55 @@ def main():
         for queue in QUEUES:
             for match_id in riot.match_ids(player["puuid"], region, queue=queue, start_time=since):
                 need_row = (match_id, player["name"]) not in existing
-                need_raw = queue in FULL_QUEUES and not (RAW / f"{match_id}.json").exists()
-                if need_row or need_raw:
-                    entry = wanted.setdefault(match_id, {"players": [], "raw": False, "region": region})
+                full = queue in FULL_QUEUES
+                need_raw = full and not (RAW / f"{match_id}.json").exists()
+                need_timeline = full and not (TIMELINES / f"{match_id}.json").exists()
+                need_ranks = full and not (RAW / f"{match_id}.ranks.json").exists()
+                if need_row or need_raw or need_timeline or need_ranks:
+                    entry = wanted.setdefault(match_id, {"players": [], "raw": False, "timeline": False,
+                                                         "ranks": False, "region": region})
                     if need_row:
                         entry["players"].append(player)
-                    entry["raw"] = entry["raw"] or need_raw
+                    entry["raw"] |= need_raw
+                    entry["timeline"] |= need_timeline
+                    entry["ranks"] |= need_ranks
 
-    new_rows, new_raw = [], 0
+    def save(path, data):
+        if not args.dry_run:
+            path.parent.mkdir(exist_ok=True)
+            path.write_text(json.dumps(data, separators=(",", ":")) + "\n")
+
+    new_rows, new_raw, new_timelines, new_ranks = [], 0, 0, 0
     for match_id, entry in sorted(wanted.items()):
-        match = riot.match(match_id, entry["region"])
+        region = entry["region"]
+        match = riot.match(match_id, region)
         if not match:
             continue
         if entry["raw"]:
             new_raw += 1
-            if not args.dry_run:
-                RAW.mkdir(exist_ok=True)
-                (RAW / f"{match_id}.json").write_text(json.dumps(match, separators=(",", ":")) + "\n")
+            save(RAW / f"{match_id}.json", match)
+        if entry["timeline"]:
+            timeline = riot.timeline(match_id, region)
+            if timeline:
+                new_timelines += 1
+                save(TIMELINES / f"{match_id}.json", timeline)
+        if entry["ranks"]:
+            # Ranked standing of all ten participants now (match data has no ranks).
+            standings = []
+            for part in match["info"]["participants"]:
+                entries = {e["queueType"]: e for e in riot.league_entries(part["puuid"], region)}
+                standings.append({
+                    "puuid": part["puuid"],
+                    "riotId": f"{part.get('riotIdGameName', '')}#{part.get('riotIdTagline', '')}",
+                    "teamId": part["teamId"],
+                    "position": part["teamPosition"] or part["individualPosition"],
+                    "champion": part["championName"],
+                    "flex": entry_to_rank(entries.get("RANKED_FLEX_SR")),
+                    "solo": entry_to_rank(entries.get("RANKED_SOLO_5x5")),
+                })
+            new_ranks += 1
+            save(RAW / f"{match_id}.ranks.json", {"matchId": match_id, "pulled": datetime.date.today().isoformat(),
+                                                   "participants": standings})
         for player in entry["players"]:
             row = row_for(match, player)
             row["teammates"] = [by_puuid[t]["name"] for t in row["teammates"] if t in by_puuid]
@@ -104,7 +139,8 @@ def main():
             print(f"{row['start'][:10]} {row['queue']:<4} {row['name']:>8} {row['champion']:<12} "
                   f"{row['position']:<7} {'W' if row['win'] else 'L'} {row['kills']}/{row['deaths']}/{row['assists']}")
 
-    print(f"\n{len(new_rows)} new rows across {len(wanted)} games; {new_raw} full Flex payloads.")
+    print(f"\n{len(new_rows)} new rows across {len(wanted)} games; "
+          f"{new_raw} full Flex payloads, {new_timelines} timelines, {new_ranks} rank sidecars.")
     if args.dry_run or not new_rows:
         return
     with MATCHES.open("a") as f:
