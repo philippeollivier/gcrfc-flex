@@ -51,6 +51,26 @@
     `<text x="${x}" y="${y}" font-size="${size}" fill="${fill}"` +
     `${anchor ? ` text-anchor="${anchor}"` : ""} font-family="Helvetica Neue, Arial, sans-serif">${content}</text>`;
 
+  /* Match-history cells: each player's Flex games, newest first, as links to
+     the raw match-v5 JSON stored in the repo. */
+  function fillMatches(matches) {
+    document.querySelectorAll("[data-matches-for]").forEach((cell) => {
+      const games = matches
+        .filter((m) => m.name === cell.dataset.matchesFor && m.queue === "flex")
+        .sort((a, b) => (a.start < b.start ? 1 : -1));
+      if (!games.length) {
+        cell.textContent = "\u2014";
+        return;
+      }
+      const wins = games.filter((g) => g.win).length;
+      const items = games.map((g) =>
+        `<li><a href="data/matches/${g.matchId}.json">${shortDate(g.start.slice(0, 10))}` +
+        ` \u00b7 ${g.champion} \u00b7 ${g.win ? "W" : "L"} ${g.kills}/${g.deaths}/${g.assists}</a></li>`);
+      cell.innerHTML = `<details class="matches"><summary>${games.length} game${games.length === 1 ? "" : "s"}` +
+        ` (${wins}W ${games.length - wins}L)</summary><ul>${items.join("")}</ul></details>`;
+    });
+  }
+
   function draw(rows, roster) {
     const sortedDates = [...new Set(rows.map((row) => row.date))].sort();
     const firstDate = sortedDates[0];
@@ -264,9 +284,13 @@
       if (!resp.ok) throw new Error(resp.status);
       return resp.json();
     }),
+    fetch("data/matches.jsonl", { cache: "no-store" })
+      .then((resp) => (resp.ok ? resp.text() : ""))
+      .catch(() => ""),
   ])
-    .then(([text, roster]) => {
+    .then(([text, roster, matchText]) => {
       const rows = text.trim().split("\n").filter(Boolean).map((line) => JSON.parse(line));
+      fillMatches(matchText.trim().split("\n").filter(Boolean).map((line) => JSON.parse(line)));
       draw(rows, roster);
     })
     .catch(() => {

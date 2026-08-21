@@ -473,3 +473,18 @@ html {
   font-size: 0.85em;
   white-space: nowrap;
 }
+
+.matches summary {
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.matches ul {
+  margin: 0.25em 0 0;
+  padding-left: 1.1em;
+  font-size: 0.9em;
+}
+
+.matches li {
+  white-space: nowrap;
+}
