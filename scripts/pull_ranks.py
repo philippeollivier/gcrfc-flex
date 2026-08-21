@@ -37,29 +37,31 @@ def fetch(url):
 
 def parse_queue(doc, label):
     """Return {tier, division, lp, wins, losses} or None if unranked."""
-    for m in re.finditer(">" + re.escape(label) + "<", doc):
-        window = doc[m.start() : m.start() + 2500]
+    # Rank cards are headed by `<span>Ranked Flex</span><svg ...` (the same
+    # label also appears in nav links / dropdowns, which lack the svg).
+    for m in re.finditer("<span>" + re.escape(label) + "</span><svg", doc):
+        window = doc[m.end() : m.end() + 2500]
         rank = re.search(
-            r'first-letter:uppercase">([a-z]+) ?(\d?)</strong>'
+            r'<strong class="text-xl">([A-Za-z]+) ?(\d?)</strong>'
             r'<span[^>]*>(\d+) LP</span>',
             window,
         )
         if rank:
             wl = re.search(r"(\d+)W (\d+)L", window)
             return {
-                "tier": rank.group(1),
+                "tier": rank.group(1).lower(),
                 "division": int(rank.group(2)) if rank.group(2) else None,
                 "lp": int(rank.group(3)),
                 "wins": int(wl.group(1)) if wl else None,
                 "losses": int(wl.group(2)) if wl else None,
             }
-        if "Unranked" in window[:600]:
+        if "Unranked" in window[:800]:
             return None
     return None
 
 
 def pull(player):
-    url = f"https://op.gg/summoners/{player['region']}/{player['slug']}"
+    url = f"https://op.gg/lol/summoners/{player['region']}/{player['slug']}"
     doc = fetch(url).replace("<!-- -->", "")
     return {q: parse_queue(doc, label) for q, label in QUEUES.items()}
 
