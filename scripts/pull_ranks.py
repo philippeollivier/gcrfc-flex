@@ -93,10 +93,15 @@ def main():
 
     if args.dry_run:
         return
-    with RANKS.open("a") as f:
+    # One snapshot per day: a same-day re-run replaces that day's rows.
+    kept = [line for line in RANKS.read_text().splitlines()
+            if line.strip() and json.loads(line)["date"] != date] if RANKS.exists() else []
+    with RANKS.open("w") as f:
+        for line in kept:
+            f.write(line + "\n")
         for row in rows:
             f.write(json.dumps(row) + "\n")
-    print(f"\nAppended {len(rows)} rows to {RANKS.relative_to(REPO)}; commit and push to publish.")
+    print(f"\nWrote {len(rows)} rows for {date} to {RANKS.relative_to(REPO)}; commit and push to publish.")
 
 
 if __name__ == "__main__":
