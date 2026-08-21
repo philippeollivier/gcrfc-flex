@@ -1,9 +1,11 @@
 """Record every roster player's ranked games via the Riot API.
 
 Writes one row per (match, player) to data/matches.jsonl, covering Ranked
-Flex (queue 440) and Ranked Solo/Duo (420) played since SINCE. Already
-recorded games are skipped, so it is safe to run daily. A game several
-roster players shared is fetched once and recorded once per player.
+Flex (queue 440) and Ranked Solo/Duo (420) played since SINCE. For every
+Flex game it also stores Riot's complete match-v5 payload as
+data/matches/<matchId>.json. Already recorded games are skipped, so it is
+safe to run daily. A game several roster players shared is fetched once
+and recorded once per player.
 
     export RIOT_API_KEY=RGAPI-...
     python3 scripts/pull_matches.py
@@ -22,6 +24,8 @@ from pull_ranks import ensure_puuids  # noqa: E402
 REPO = pathlib.Path(__file__).resolve().parent.parent
 PLAYERS = REPO / "data" / "players.json"
 MATCHES = REPO / "data" / "matches.jsonl"
+RAW = REPO / "data" / "matches"  # full match-v5 JSON, Flex games only
+FULL_QUEUES = {440}
 SINCE = datetime.datetime(2026, 8, 19, tzinfo=datetime.timezone.utc)  # tracking start
 QUEUES = {440: "flex", 420: "solo"}
 
@@ -70,27 +74,37 @@ def main():
     existing = load_existing()
     since = int(SINCE.timestamp())
 
-    wanted = {}  # matchId -> [players]
+    wanted = {}  # matchId -> {"players": [players needing a row], "raw": bool}
     for player in players:
         region = player.get("region", "na")
         for queue in QUEUES:
             for match_id in riot.match_ids(player["puuid"], region, queue=queue, start_time=since):
-                if (match_id, player["name"]) not in existing:
-                    wanted.setdefault(match_id, []).append(player)
+                need_row = (match_id, player["name"]) not in existing
+                need_raw = queue in FULL_QUEUES and not (RAW / f"{match_id}.json").exists()
+                if need_row or need_raw:
+                    entry = wanted.setdefault(match_id, {"players": [], "raw": False, "region": region})
+                    if need_row:
+                        entry["players"].append(player)
+                    entry["raw"] = entry["raw"] or need_raw
 
-    new_rows = []
-    for match_id, owners in sorted(wanted.items()):
-        match = riot.match(match_id, owners[0].get("region", "na"))
+    new_rows, new_raw = [], 0
+    for match_id, entry in sorted(wanted.items()):
+        match = riot.match(match_id, entry["region"])
         if not match:
             continue
-        for player in owners:
+        if entry["raw"]:
+            new_raw += 1
+            if not args.dry_run:
+                RAW.mkdir(exist_ok=True)
+                (RAW / f"{match_id}.json").write_text(json.dumps(match, separators=(",", ":")) + "\n")
+        for player in entry["players"]:
             row = row_for(match, player)
             row["teammates"] = [by_puuid[t]["name"] for t in row["teammates"] if t in by_puuid]
             new_rows.append(row)
             print(f"{row['start'][:10]} {row['queue']:<4} {row['name']:>8} {row['champion']:<12} "
                   f"{row['position']:<7} {'W' if row['win'] else 'L'} {row['kills']}/{row['deaths']}/{row['assists']}")
 
-    print(f"\n{len(new_rows)} new rows across {len(wanted)} games.")
+    print(f"\n{len(new_rows)} new rows across {len(wanted)} games; {new_raw} full Flex payloads.")
     if args.dry_run or not new_rows:
         return
     with MATCHES.open("a") as f:
