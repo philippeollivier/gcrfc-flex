@@ -7,6 +7,11 @@
   const BLUE = "#0000ee";
   const RULE = "#e6e6e6";
   const VIEW_WIDTH = 640;
+  // Fixed x-axis: first pull date through the end of the 2026 ranked year
+  // (Season 3). Riot announces the exact end date about a month before it;
+  // X_END is an estimate ("early January 2027") until then - edit when known.
+  const X_START = "2026-08-19";
+  const X_END = "2027-01-07";
   const TIERS = ["iron", "bronze", "silver", "gold", "platinum", "emerald",
     "diamond", "master", "grandmaster", "challenger"];
   const SHORT_MONTHS = ["Jan.", "Feb.", "March", "April", "May", "June",
@@ -88,8 +93,8 @@
     const low = Math.floor((Math.min(...values) - 60) / 100) * 100;
     const high = Math.max(Math.ceil((Math.max(...values) + 60) / 100) * 100, goal);
     const y = (v) => bottom - ((v - low) / (high - low)) * (bottom - top);
-    const first = toDate(dates[0]).getTime();
-    const span = Math.max(toDate(latest).getTime() - first, 86400000);
+    const first = toDate(X_START).getTime();
+    const span = Math.max(toDate(X_END).getTime() - first, 86400000);
     const x = (iso) => left + ((toDate(iso).getTime() - first) / span) * (VIEW_WIDTH - left - right);
 
     let markup = "";
@@ -118,7 +123,25 @@
       });
     });
 
-    dates.forEach((date) => {
+    // Month ticks between the endpoints; skip any that would crowd the
+    // start/end labels.
+    const DAY = 86400000;
+    const ticks = [X_START];
+    const cursor = toDate(X_START);
+    cursor.setDate(1);
+    cursor.setMonth(cursor.getMonth() + 1);
+    const end = toDate(X_END).getTime();
+    while (cursor.getTime() < end) {
+      const t = cursor.getTime();
+      if (t - first > 14 * DAY && end - t > 14 * DAY) {
+        const iso = `${cursor.getFullYear()}-${String(cursor.getMonth() + 1).padStart(2, "0")}-01`;
+        ticks.push(iso);
+      }
+      cursor.setMonth(cursor.getMonth() + 1);
+    }
+    ticks.push(X_END);
+    ticks.forEach((date) => {
+      markup += `<line x1="${x(date)}" y1="${bottom}" x2="${x(date)}" y2="${bottom + 4}" stroke="${GREY}"/>`;
       markup += svgText(x(date), bottom + 16, 10, GREY, "middle", shortDate(date));
     });
 
