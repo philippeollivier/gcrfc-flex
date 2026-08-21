@@ -2,6 +2,8 @@
 
 Appends one row per player for today to data/ranks.jsonl (a same-day re-run
 replaces that day's rows). Caches each player's puuid in data/players.json.
+NOTE: puuids are encrypted per API key - if RIOT_API_KEY changes, delete the
+"puuid" fields from data/players.json so they are looked up again.
 
     export RIOT_API_KEY=RGAPI-...
     python3 scripts/pull_ranks.py            # write rows
