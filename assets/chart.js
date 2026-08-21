@@ -52,10 +52,23 @@
     `${anchor ? ` text-anchor="${anchor}"` : ""} font-family="Helvetica Neue, Arial, sans-serif">${content}</text>`;
 
   function draw(rows, roster) {
-    const lastDate = rows.map((row) => row.date).sort().pop();
+    const sortedDates = [...new Set(rows.map((row) => row.date))].sort();
+    const firstDate = sortedDates[0];
+    const lastDate = sortedDates[sortedDates.length - 1];
     rows.filter((row) => row.date === lastDate).forEach((row) => {
       const cell = document.querySelector(`[data-flex-for="${row.name}"]`);
-      if (cell) cell.textContent = row.flex ? rankText(row.flex) : "Unranked";
+      if (!cell) return;
+      cell.textContent = row.flex ? rankText(row.flex) : "Unranked";
+      /* Net LP since the first snapshot, as an arrow + number. */
+      const start = rows.find((r) => r.name === row.name && r.date === firstDate);
+      if (!row.flex || !start || !start.flex || firstDate === lastDate) return;
+      const delta = value(row.flex) - value(start.flex);
+      const arrow = delta > 0 ? "\u2191" : delta < 0 ? "\u2193" : "\u2192";
+      const span = document.createElement("span");
+      span.className = "lp-delta";
+      span.title = `Net LP since ${shortDate(firstDate)}`;
+      span.textContent = ` ${arrow} ${delta > 0 ? "+" : delta < 0 ? "\u2212" : ""}${Math.abs(delta)} LP`;
+      cell.appendChild(span);
     });
 
     /* Substitutes stay in the roster table but out of the chart. */

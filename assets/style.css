@@ -467,3 +467,9 @@ html {
 .notes > li:target::before {
   font-weight: bold;
 }
+
+.lp-delta {
+  color: #606060;
+  font-size: 0.85em;
+  white-space: nowrap;
+}
