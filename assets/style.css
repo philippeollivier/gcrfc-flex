@@ -474,3 +474,7 @@ html {
   white-space: nowrap;
 }
 
+
+.roster td:first-child {
+  white-space: nowrap;
+}
