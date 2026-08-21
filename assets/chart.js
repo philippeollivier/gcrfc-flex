@@ -71,6 +71,29 @@
       cell.appendChild(span);
     });
 
+    /* Sort the starters' rows by current flex rank, highest first; subs keep
+       their place below. */
+    const latestValue = (name) => {
+      const row = rows.find((r) => r.name === name && r.date === lastDate);
+      return row && row.flex ? value(row.flex) : -1;
+    };
+    const starterRows = roster
+      .filter((player) => !player.roles.includes("substitute"))
+      .map((player) => {
+        const cell = document.querySelector(`[data-flex-for="${player.name}"]`);
+        return cell ? { tr: cell.closest("tr"), value: latestValue(player.name) } : null;
+      })
+      .filter((entry) => entry && entry.tr);
+    if (starterRows.length) {
+      const parent = starterRows[0].tr.parentNode;
+      const starterSet = new Set(starterRows.map((entry) => entry.tr));
+      /* Fixed reference: the first non-starter row (a sub), or the end. */
+      const reference = [...parent.children].find((tr) => !starterSet.has(tr)) || null;
+      [...starterRows]
+        .sort((a, b) => b.value - a.value)
+        .forEach((entry) => parent.insertBefore(entry.tr, reference));
+    }
+
     /* Substitutes stay in the roster table but out of the chart. */
     const charted = roster
       .filter((player) => !player.roles.includes("substitute"))
