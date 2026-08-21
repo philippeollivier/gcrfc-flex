@@ -192,18 +192,15 @@
       })
       .join("");
 
-    const hoverPoints = dates.map((date) => ({
-      x: x(date),
-      title: shortDate(date),
-      rows: byPlayer
-        .map((player) => {
-          const pt = player.points.find((p) => p.date === date);
-          return pt ? { name: player.name, value: pt.value, text: rankText(pt.rank) } : null;
-        })
-        .filter(Boolean)
-        .sort((a, b) => b.value - a.value)
-        .map((entry) => [entry.name, entry.text]),
-    }));
+    /* One hover target per plotted point; the nearest one wins. */
+    const hoverPoints = byPlayer.flatMap((player, i) =>
+      player.points.map((pt) => ({
+        x: x(pt.date),
+        y: y(pt.value),
+        colour: COLOURS[i % COLOURS.length],
+        title: player.name,
+        rows: [[shortDate(pt.date), rankText(pt.rank)]],
+      })));
 
     function hideTip() {
       tip.classList.remove("is-visible");
@@ -228,7 +225,7 @@
       line.setAttribute("y2", bottom);
       line.setAttribute("visibility", "visible");
 
-      tip.innerHTML = `<div class="tip-head">${point.title}</div>` +
+      tip.innerHTML = `<div class="tip-head" style="color:${point.colour}">${point.title}</div>` +
         point.rows.map(([label, v]) => `<div class="tip-row">${label}<b>${v}</b></div>`).join("");
       tip.classList.add("is-visible");
       const half = tip.offsetWidth / 2;
@@ -239,10 +236,13 @@
 
     function trackPointer(event) {
       const box = chart.getBoundingClientRect();
-      const position = (event.clientX - box.left) * (VIEW_WIDTH / box.width);
+      const scale = VIEW_WIDTH / box.width;
+      const px = (event.clientX - box.left) * scale;
+      const py = (event.clientY - box.top) * scale;
+      const dist = (point) => Math.hypot(point.x - px, point.y - py);
       let nearest = hoverPoints[0];
       hoverPoints.forEach((point) => {
-        if (Math.abs(point.x - position) < Math.abs(nearest.x - position)) nearest = point;
+        if (dist(point) < dist(nearest)) nearest = point;
       });
       showTip(nearest);
     }
