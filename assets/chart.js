@@ -1,6 +1,8 @@
 /* Rank history chart. Reads data/ranks.jsonl (one JSON row per player per
-   pull date) and draws one line per player, Steez style. A Flex | Solo
-   toggle redraws the chart for either queue. */
+   pull date) and draws two lines per player - a dark tone for Flex, a light
+   tone of the same colour for Solo. The Flex | Solo toggle sets which queue
+   is full strength (the other drops to 20% opacity), and hovering a name in
+   the legend spotlights that player's lines. */
 
 (function () {
   const INK = "#1a1a1a";
@@ -22,6 +24,15 @@
   const COLOURS = ["#3b5dc9", "#38b764", "#ef7d57", "#5d275d",
     "#257179", "#41a6f6", "#566c86", "#94b0c2"];
   const GOAL_COLOUR = "#b13e53";
+  /* Light tone of a player's colour, used for their Solo line. */
+  const lighten = (hex, amount) => {
+    const n = parseInt(hex.slice(1), 16);
+    const mix = (c) => Math.round(c + (255 - c) * amount);
+    const rgb = (mix(n >> 16) << 16) | (mix((n >> 8) & 255) << 8) | mix(n & 255);
+    return `#${rgb.toString(16).padStart(6, "0")}`;
+  };
+  const QUEUE_DIM = 0.2;   /* the queue the toggle is not on */
+  const FOCUS_DIM = 0.06;  /* everyone else while a legend name is hovered */
 
   const chart = document.querySelector("#chart");
   if (!chart) return;
@@ -109,48 +120,64 @@
         .forEach((entry) => parent.insertBefore(entry.tr, reference));
     }
 
-    const latest = lastDate;
     const updated = document.querySelector("#ranks-updated");
     if (updated) {
-      updated.textContent = shortDate(latest);
-      updated.setAttribute("datetime", latest);
+      updated.textContent = shortDate(lastDate);
+      updated.setAttribute("datetime", lastDate);
       updated.classList.add("variable");
-      updated.dataset.tooltip = latest;
-      updated.dataset.copy = latest;
+      updated.dataset.tooltip = lastDate;
+      updated.dataset.copy = lastDate;
     }
   }
 
-  /* One hover target per plotted point; rebuilt on every draw. */
   let hoverPoints = [];
+  let activeQueue = "flex";
+  let focusPlayer = null;
   const top = 18, bottom = 190, height = 228;
 
-  function draw(rows, roster, queue) {
+  /* Line opacity from the toggle and any legend hover; the chart itself is
+     drawn once and only these opacities change. */
+  function setOpacities() {
+    chart.querySelectorAll("[data-player]").forEach((el) => {
+      const opacity = focusPlayer
+        ? (el.dataset.player === focusPlayer ? 1 : FOCUS_DIM)
+        : (el.dataset.queue === activeQueue ? 1 : QUEUE_DIM);
+      el.setAttribute("opacity", opacity);
+    });
+  }
+
+  function draw(rows, roster) {
     /* Substitutes stay in the roster table but out of the chart. */
     const charted = roster
       .filter((player) => !player.roles.includes("substitute"))
       .map((player) => player.name);
-    const rankRows = rows.filter((row) => row[queue] && charted.includes(row.name));
+    const rankRows = rows.filter((row) => charted.includes(row.name) && (row.flex || row.solo));
     if (!rankRows.length) return;
 
     const dates = [...new Set(rankRows.map((row) => row.date))].sort();
-    const players = charted.filter((name) => rankRows.some((row) => row.name === name));
-    const byPlayer = players.map((name) => ({
-      name,
-      points: dates
-        .map((date) => {
-          const row = rankRows.find((r) => r.name === name && r.date === date);
-          return row ? { date, rank: row[queue], value: value(row[queue]) } : null;
-        })
-        .filter(Boolean),
-    }));
+    /* One colour per player, fixed by roster order, shared by both queues. */
+    const byPlayer = charted
+      .map((name, i) => ({
+        name,
+        colours: { flex: COLOURS[i % COLOURS.length], solo: lighten(COLOURS[i % COLOURS.length], 0.55) },
+        queues: ["flex", "solo"].map((queue) => ({
+          queue,
+          points: dates
+            .map((date) => {
+              const row = rankRows.find((r) => r.name === name && r.date === date);
+              return row && row[queue]
+                ? { date, rank: row[queue], value: value(row[queue]) } : null;
+            })
+            .filter(Boolean),
+        })).filter((line) => line.points.length),
+      }))
+      .filter((player) => player.queues.length);
 
     const left = 76, right = 48;
     const goal = TIERS.indexOf("master") * 400;
-    const showGoal = queue === "flex";
-    const values = byPlayer.flatMap((p) => p.points.map((pt) => pt.value));
+    const values = byPlayer.flatMap((p) => p.queues.flatMap((q) => q.points.map((pt) => pt.value)));
     const low = Math.floor((Math.min(...values) - 60) / 100) * 100;
-    let high = Math.ceil((Math.max(...values) + 60) / 100) * 100;
-    if (showGoal) high = Math.max(high, goal);
+    const high = Math.max(Math.ceil((Math.max(...values) + 60) / 100) * 100, goal);
     const y = (v) => bottom - ((v - low) / (high - low)) * (bottom - top);
     const first = toDate(X_START).getTime();
     const span = Math.max(toDate(X_END).getTime() - first, 86400000);
@@ -159,7 +186,7 @@
     let markup = "";
     for (let v = low; v <= high; v += 100) {
       const boundary = v % 400 === 0;
-      const isGoal = showGoal && v === goal;
+      const isGoal = v === goal;
       markup += `<line x1="${left}" y1="${y(v)}" x2="${VIEW_WIDTH - right}" y2="${y(v)}"` +
         ` stroke="${isGoal ? GOAL_COLOUR : (boundary ? GREY : RULE)}" stroke-width="${isGoal ? 1.5 : 1}"/>`;
       if (boundary) {
@@ -173,15 +200,18 @@
       }
     }
 
-    byPlayer.forEach((player, i) => {
-      const colour = COLOURS[i % COLOURS.length];
-      const points = player.points.map((pt) => `${x(pt.date)},${y(pt.value)}`).join(" ");
-      markup += `<polyline points="${points}" fill="none" stroke="${colour}" stroke-width="1.5"/>`;
-      /* A single snapshot has no line to show; mark it with a lone dot. */
-      if (player.points.length === 1) {
-        const pt = player.points[0];
-        markup += `<circle cx="${x(pt.date)}" cy="${y(pt.value)}" r="2.8" fill="${colour}"/>`;
-      }
+    byPlayer.forEach((player) => {
+      player.queues.forEach((line) => {
+        const colour = player.colours[line.queue];
+        const attrs = `data-player="${player.name}" data-queue="${line.queue}"`;
+        const points = line.points.map((pt) => `${x(pt.date)},${y(pt.value)}`).join(" ");
+        markup += `<polyline points="${points}" fill="none" stroke="${colour}" stroke-width="1.5" ${attrs}/>`;
+        /* A single snapshot has no line to show; mark it with a lone dot. */
+        if (line.points.length === 1) {
+          const pt = line.points[0];
+          markup += `<circle cx="${x(pt.date)}" cy="${y(pt.value)}" r="2.8" fill="${colour}" ${attrs}/>`;
+        }
+      });
     });
 
     // Month ticks between the endpoints; skip any that would crowd the
@@ -208,25 +238,40 @@
 
     chart.setAttribute("viewBox", `0 0 ${VIEW_WIDTH} ${height}`);
     chart.innerHTML = markup;
-    chart.setAttribute("aria-label",
-      `${queue === "flex" ? "Flex" : "Solo"} rank of every player over time`);
+    setOpacities();
 
+    /* Legend: two-tone swatch (dark Flex, light Solo); hovering a name
+       spotlights that player's lines. */
     keys.innerHTML = byPlayer
-      .map((player, i) => {
-        const colour = COLOURS[i % COLOURS.length];
-        return `<li><svg viewBox="0 0 40 10" aria-hidden="true"><line x1="0" y1="5" x2="40" y2="5"` +
-          ` stroke="${colour}" stroke-width="2"/></svg>${player.name}</li>`;
-      })
+      .map((player) =>
+        `<li data-player="${player.name}"><svg viewBox="0 0 40 10" aria-hidden="true">` +
+        `<line x1="0" y1="5" x2="20" y2="5" stroke="${player.colours.flex}" stroke-width="2"/>` +
+        `<line x1="20" y1="5" x2="40" y2="5" stroke="${player.colours.solo}" stroke-width="2"/>` +
+        `</svg>${player.name}</li>`)
       .join("");
+    keys.querySelectorAll("li[data-player]").forEach((li) => {
+      li.addEventListener("mouseenter", () => {
+        focusPlayer = li.dataset.player;
+        setOpacities();
+      });
+      li.addEventListener("mouseleave", () => {
+        focusPlayer = null;
+        setOpacities();
+      });
+    });
 
-    hoverPoints = byPlayer.flatMap((player, i) =>
-      player.points.map((pt) => ({
-        x: x(pt.date),
-        y: y(pt.value),
-        colour: COLOURS[i % COLOURS.length],
-        title: player.name,
-        rows: [[shortDate(pt.date), rankText(pt.rank)]],
-      })));
+    /* One hover target per plotted point; the nearest one wins. */
+    hoverPoints = byPlayer.flatMap((player) =>
+      player.queues.flatMap((line) =>
+        line.points.map((pt) => ({
+          x: x(pt.date),
+          y: y(pt.value),
+          colour: player.colours[line.queue],
+          queue: line.queue,
+          title: player.name,
+          rows: [[`${shortDate(pt.date)} · ${line.queue === "flex" ? "Flex" : "Solo"}`,
+            rankText(pt.rank)]],
+        }))));
   }
 
   function hideTip() {
@@ -267,7 +312,14 @@
     const scale = VIEW_WIDTH / box.width;
     const px = (event.clientX - box.left) * scale;
     const py = (event.clientY - box.top) * scale;
-    const dist = (point) => Math.hypot(point.x - px, point.y - py);
+    /* Points on the dimmed queue are harder to aim at on purpose: prefer the
+       active queue unless the pointer is clearly closer to the other one. */
+    const dist = (point) => {
+      const active = focusPlayer
+        ? point.title === focusPlayer
+        : point.queue === activeQueue;
+      return Math.hypot(point.x - px, point.y - py) * (active ? 1 : 2.5);
+    };
     let nearest = hoverPoints[0];
     hoverPoints.forEach((point) => {
       if (dist(point) < dist(nearest)) nearest = point;
@@ -299,15 +351,16 @@
       const rows = text.trim().split("\n").filter(Boolean).map((line) => JSON.parse(line));
       fillMatches(matchText.trim().split("\n").filter(Boolean).map((line) => JSON.parse(line)));
       fillTable(rows, roster);
-      draw(rows, roster, "flex");
+      draw(rows, roster);
       if (toggle) {
         toggle.addEventListener("click", (event) => {
           const button = event.target.closest("button[data-queue]");
           if (!button || button.classList.contains("is-active")) return;
           toggle.querySelectorAll("button").forEach((b) =>
             b.classList.toggle("is-active", b === button));
+          activeQueue = button.dataset.queue;
           hideTip();
-          draw(rows, roster, button.dataset.queue);
+          setOpacities();
         });
       }
     })
