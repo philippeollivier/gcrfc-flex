@@ -102,3 +102,11 @@
 {"date": "2026-09-01", "name": "David", "flex": {"tier": "silver", "division": 1, "lp": 47, "wins": 25, "losses": 25}, "solo": {"tier": "gold", "division": 3, "lp": 12, "wins": 13, "losses": 16}}
 {"date": "2026-09-01", "name": "Evan", "flex": {"tier": "gold", "division": 1, "lp": 7, "wins": 24, "losses": 23}, "solo": {"tier": "emerald", "division": 4, "lp": 15, "wins": 75, "losses": 59}}
 {"date": "2026-09-01", "name": "Kevin", "flex": null, "solo": null}
+{"date": "2026-09-02", "name": "Phil", "flex": {"tier": "emerald", "division": 2, "lp": 62, "wins": 10, "losses": 17}, "solo": {"tier": "diamond", "division": 4, "lp": 69, "wins": 18, "losses": 15}}
+{"date": "2026-09-02", "name": "Adriene", "flex": {"tier": "emerald", "division": 3, "lp": 61, "wins": 7, "losses": 9}, "solo": null}
+{"date": "2026-09-02", "name": "Matthew", "flex": {"tier": "emerald", "division": 3, "lp": 26, "wins": 13, "losses": 13}, "solo": {"tier": "gold", "division": 3, "lp": 40, "wins": 3, "losses": 3}}
+{"date": "2026-09-02", "name": "Manuel", "flex": {"tier": "gold", "division": 1, "lp": 12, "wins": 22, "losses": 22}, "solo": {"tier": "gold", "division": 3, "lp": 91, "wins": 11, "losses": 16}}
+{"date": "2026-09-02", "name": "Erica", "flex": {"tier": "gold", "division": 3, "lp": 33, "wins": 22, "losses": 21}, "solo": {"tier": "silver", "division": 3, "lp": 41, "wins": 10, "losses": 14}}
+{"date": "2026-09-02", "name": "David", "flex": {"tier": "silver", "division": 1, "lp": 68, "wins": 26, "losses": 25}, "solo": {"tier": "gold", "division": 3, "lp": 13, "wins": 14, "losses": 18}}
+{"date": "2026-09-02", "name": "Evan", "flex": {"tier": "gold", "division": 1, "lp": 86, "wins": 28, "losses": 24}, "solo": {"tier": "emerald", "division": 4, "lp": 15, "wins": 75, "losses": 59}}
+{"date": "2026-09-02", "name": "Kevin", "flex": null, "solo": null}
