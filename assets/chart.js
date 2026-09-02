@@ -55,6 +55,10 @@
     const division = rank.division ? ` ${rank.division}` : "";
     return `${tier}${division}, ${rank.lp} LP`;
   };
+  /* Compact form for the roster table, e.g. "D4 69LP" (GM for grandmaster) */
+  const TIER_ABBR = { grandmaster: "GM" };
+  const shortRank = (rank) =>
+    `${TIER_ABBR[rank.tier] || rank.tier[0].toUpperCase()}${rank.division || ""} ${rank.lp}LP`;
   const toDate = (iso) => {
     const [y, m, d] = iso.split("-").map(Number);
     return new Date(y, m - 1, d);
@@ -83,7 +87,8 @@
         cell.textContent = "";
         const rank = document.createElement("span");
         rank.className = "rank-text";
-        rank.textContent = row[queue] ? rankText(row[queue]) : "Unranked";
+        rank.textContent = row[queue] ? shortRank(row[queue]) : "Unranked";
+        if (row[queue]) rank.title = rankText(row[queue]);
         cell.append(rank);
         /* Baseline: the player's first snapshot with a rank in this queue -
            someone still in placements on day one gets a delta from the day
@@ -97,7 +102,7 @@
           const span = document.createElement("span");
           span.className = `lp-delta ${delta > 0 ? "up" : delta < 0 ? "down" : ""}`;
           span.title = `Net LP since ${shortDate(start.date)}`;
-          span.textContent = `${arrow} ${delta > 0 ? "+" : delta < 0 ? "−" : ""}${Math.abs(delta)} LP`;
+          span.textContent = `${arrow}${Math.abs(delta)}LP`;
           cell.append(" ", span);
         }
         /* Record for this queue, linking to the player's match page (subs
