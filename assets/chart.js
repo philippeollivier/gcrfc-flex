@@ -88,13 +88,18 @@
         const cell = document.querySelector(`[data-${queue}-for="${row.name}"]`);
         if (!cell) return;
         cell.textContent = row[queue] ? rankText(row[queue]) : "Unranked";
-        const start = rows.find((r) => r.name === row.name && r.date === firstDate);
-        if (!row[queue] || !start || !start[queue] || firstDate === lastDate) return;
+        /* Baseline: the player's first snapshot with a rank in this queue -
+           someone still in placements on day one gets a delta from the day
+           they placed instead of none at all. */
+        const start = sortedDates
+          .map((d) => rows.find((r) => r.name === row.name && r.date === d))
+          .find((r) => r && r[queue]);
+        if (!row[queue] || !start || start.date === lastDate) return;
         const delta = value(row[queue]) - value(start[queue]);
         const arrow = delta > 0 ? "↑" : delta < 0 ? "↓" : "→";
         const span = document.createElement("span");
-        span.className = "lp-delta";
-        span.title = `Net LP since ${shortDate(firstDate)}`;
+        span.className = `lp-delta ${delta > 0 ? "up" : delta < 0 ? "down" : ""}`;
+        span.title = `Net LP since ${shortDate(start.date)}`;
         span.textContent = ` ${arrow} ${delta > 0 ? "+" : delta < 0 ? "−" : ""}${Math.abs(delta)} LP`;
         cell.appendChild(span);
       });

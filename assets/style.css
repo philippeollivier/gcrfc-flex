@@ -505,3 +505,12 @@ html {
   text-decoration: none;
   cursor: default;
 }
+
+/* LP delta direction, in the chart's own green/red */
+.lp-delta.up {
+  color: #38b764;
+}
+
+.lp-delta.down {
+  color: #b13e53;
+}
