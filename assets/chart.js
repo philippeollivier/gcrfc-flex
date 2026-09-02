@@ -1,5 +1,6 @@
-/* Flex rank history chart. Reads data/ranks.jsonl (one JSON row per
-   player per pull date) and draws one line per player, Steez style. */
+/* Rank history chart. Reads data/ranks.jsonl (one JSON row per player per
+   pull date) and draws one line per player, Steez style. A Flex | Solo
+   toggle redraws the chart for either queue. */
 
 (function () {
   const INK = "#1a1a1a";
@@ -28,6 +29,7 @@
   const tip = figure.querySelector(".chart-tip");
   const keys = figure.querySelector(".chart-keys");
   const caption = figure.querySelector("figcaption");
+  const toggle = figure.querySelector(".chart-queues");
 
   const value = (rank) => {
     const tier = TIERS.indexOf(rank.tier);
@@ -61,24 +63,27 @@
     });
   }
 
-  function draw(rows, roster) {
+  /* Rank cells (both queues): current rank plus net LP since the first
+     snapshot, as an arrow + number. */
+  function fillTable(rows, roster) {
     const sortedDates = [...new Set(rows.map((row) => row.date))].sort();
     const firstDate = sortedDates[0];
     const lastDate = sortedDates[sortedDates.length - 1];
-    rows.filter((row) => row.date === lastDate).forEach((row) => {
-      const cell = document.querySelector(`[data-flex-for="${row.name}"]`);
-      if (!cell) return;
-      cell.textContent = row.flex ? rankText(row.flex) : "Unranked";
-      /* Net LP since the first snapshot, as an arrow + number. */
-      const start = rows.find((r) => r.name === row.name && r.date === firstDate);
-      if (!row.flex || !start || !start.flex || firstDate === lastDate) return;
-      const delta = value(row.flex) - value(start.flex);
-      const arrow = delta > 0 ? "\u2191" : delta < 0 ? "\u2193" : "\u2192";
-      const span = document.createElement("span");
-      span.className = "lp-delta";
-      span.title = `Net LP since ${shortDate(firstDate)}`;
-      span.textContent = ` ${arrow} ${delta > 0 ? "+" : delta < 0 ? "\u2212" : ""}${Math.abs(delta)} LP`;
-      cell.appendChild(span);
+    ["flex", "solo"].forEach((queue) => {
+      rows.filter((row) => row.date === lastDate).forEach((row) => {
+        const cell = document.querySelector(`[data-${queue}-for="${row.name}"]`);
+        if (!cell) return;
+        cell.textContent = row[queue] ? rankText(row[queue]) : "Unranked";
+        const start = rows.find((r) => r.name === row.name && r.date === firstDate);
+        if (!row[queue] || !start || !start[queue] || firstDate === lastDate) return;
+        const delta = value(row[queue]) - value(start[queue]);
+        const arrow = delta > 0 ? "↑" : delta < 0 ? "↓" : "→";
+        const span = document.createElement("span");
+        span.className = "lp-delta";
+        span.title = `Net LP since ${shortDate(firstDate)}`;
+        span.textContent = ` ${arrow} ${delta > 0 ? "+" : delta < 0 ? "−" : ""}${Math.abs(delta)} LP`;
+        cell.appendChild(span);
+      });
     });
 
     /* Sort the starters' rows by current flex rank, highest first; subs keep
@@ -104,26 +109,7 @@
         .forEach((entry) => parent.insertBefore(entry.tr, reference));
     }
 
-    /* Substitutes stay in the roster table but out of the chart. */
-    const charted = roster
-      .filter((player) => !player.roles.includes("substitute"))
-      .map((player) => player.name);
-    const flexRows = rows.filter((row) => row.flex && charted.includes(row.name));
-    if (!flexRows.length) return;
-
-    const dates = [...new Set(flexRows.map((row) => row.date))].sort();
-    const players = charted.filter((name) => flexRows.some((row) => row.name === name));
-    const byPlayer = players.map((name) => ({
-      name,
-      points: dates
-        .map((date) => {
-          const row = flexRows.find((r) => r.name === name && r.date === date);
-          return row ? { date, rank: row.flex, value: value(row.flex) } : null;
-        })
-        .filter(Boolean),
-    }));
-
-    const latest = dates[dates.length - 1];
+    const latest = lastDate;
     const updated = document.querySelector("#ranks-updated");
     if (updated) {
       updated.textContent = shortDate(latest);
@@ -132,12 +118,39 @@
       updated.dataset.tooltip = latest;
       updated.dataset.copy = latest;
     }
+  }
 
-    const left = 76, right = 48, top = 18, bottom = 190, height = 228;
+  /* One hover target per plotted point; rebuilt on every draw. */
+  let hoverPoints = [];
+  const top = 18, bottom = 190, height = 228;
+
+  function draw(rows, roster, queue) {
+    /* Substitutes stay in the roster table but out of the chart. */
+    const charted = roster
+      .filter((player) => !player.roles.includes("substitute"))
+      .map((player) => player.name);
+    const rankRows = rows.filter((row) => row[queue] && charted.includes(row.name));
+    if (!rankRows.length) return;
+
+    const dates = [...new Set(rankRows.map((row) => row.date))].sort();
+    const players = charted.filter((name) => rankRows.some((row) => row.name === name));
+    const byPlayer = players.map((name) => ({
+      name,
+      points: dates
+        .map((date) => {
+          const row = rankRows.find((r) => r.name === name && r.date === date);
+          return row ? { date, rank: row[queue], value: value(row[queue]) } : null;
+        })
+        .filter(Boolean),
+    }));
+
+    const left = 76, right = 48;
     const goal = TIERS.indexOf("master") * 400;
+    const showGoal = queue === "flex";
     const values = byPlayer.flatMap((p) => p.points.map((pt) => pt.value));
     const low = Math.floor((Math.min(...values) - 60) / 100) * 100;
-    const high = Math.max(Math.ceil((Math.max(...values) + 60) / 100) * 100, goal);
+    let high = Math.ceil((Math.max(...values) + 60) / 100) * 100;
+    if (showGoal) high = Math.max(high, goal);
     const y = (v) => bottom - ((v - low) / (high - low)) * (bottom - top);
     const first = toDate(X_START).getTime();
     const span = Math.max(toDate(X_END).getTime() - first, 86400000);
@@ -146,7 +159,7 @@
     let markup = "";
     for (let v = low; v <= high; v += 100) {
       const boundary = v % 400 === 0;
-      const isGoal = v === goal;
+      const isGoal = showGoal && v === goal;
       markup += `<line x1="${left}" y1="${y(v)}" x2="${VIEW_WIDTH - right}" y2="${y(v)}"` +
         ` stroke="${isGoal ? GOAL_COLOUR : (boundary ? GREY : RULE)}" stroke-width="${isGoal ? 1.5 : 1}"/>`;
       if (boundary) {
@@ -164,9 +177,11 @@
       const colour = COLOURS[i % COLOURS.length];
       const points = player.points.map((pt) => `${x(pt.date)},${y(pt.value)}`).join(" ");
       markup += `<polyline points="${points}" fill="none" stroke="${colour}" stroke-width="1.5"/>`;
-      player.points.forEach((pt) => {
+      /* A single snapshot has no line to show; mark it with a lone dot. */
+      if (player.points.length === 1) {
+        const pt = player.points[0];
         markup += `<circle cx="${x(pt.date)}" cy="${y(pt.value)}" r="2.8" fill="${colour}"/>`;
-      });
+      }
     });
 
     // Month ticks between the endpoints; skip any that would crowd the
@@ -193,6 +208,8 @@
 
     chart.setAttribute("viewBox", `0 0 ${VIEW_WIDTH} ${height}`);
     chart.innerHTML = markup;
+    chart.setAttribute("aria-label",
+      `${queue === "flex" ? "Flex" : "Solo"} rank of every player over time`);
 
     keys.innerHTML = byPlayer
       .map((player, i) => {
@@ -202,8 +219,7 @@
       })
       .join("");
 
-    /* One hover target per plotted point; the nearest one wins. */
-    const hoverPoints = byPlayer.flatMap((player, i) =>
+    hoverPoints = byPlayer.flatMap((player, i) =>
       player.points.map((pt) => ({
         x: x(pt.date),
         y: y(pt.value),
@@ -211,57 +227,58 @@
         title: player.name,
         rows: [[shortDate(pt.date), rankText(pt.rank)]],
       })));
-
-    function hideTip() {
-      tip.classList.remove("is-visible");
-      const line = chart.querySelector("#crosshair");
-      if (line) line.setAttribute("visibility", "hidden");
-    }
-
-    function showTip(point) {
-      const box = chart.getBoundingClientRect();
-      const scale = box.width / VIEW_WIDTH;
-      let line = chart.querySelector("#crosshair");
-      if (!line) {
-        line = document.createElementNS("http://www.w3.org/2000/svg", "line");
-        line.setAttribute("id", "crosshair");
-        line.setAttribute("stroke", GREY);
-        line.setAttribute("stroke-dasharray", "2 3");
-        chart.append(line);
-      }
-      line.setAttribute("x1", point.x);
-      line.setAttribute("x2", point.x);
-      line.setAttribute("y1", top);
-      line.setAttribute("y2", bottom);
-      line.setAttribute("visibility", "visible");
-
-      tip.innerHTML = `<div class="tip-head" style="color:${point.colour}">${point.title}</div>` +
-        point.rows.map(([label, v]) => `<div class="tip-row">${label}<b>${v}</b></div>`).join("");
-      tip.classList.add("is-visible");
-      const half = tip.offsetWidth / 2;
-      const wanted = point.x * scale;
-      tip.style.left = `${Math.max(half + 2, Math.min(box.width - half - 2, wanted))}px`;
-      tip.style.top = `${Math.max(2, top * scale - 6)}px`;
-    }
-
-    function trackPointer(event) {
-      const box = chart.getBoundingClientRect();
-      const scale = VIEW_WIDTH / box.width;
-      const px = (event.clientX - box.left) * scale;
-      const py = (event.clientY - box.top) * scale;
-      const dist = (point) => Math.hypot(point.x - px, point.y - py);
-      let nearest = hoverPoints[0];
-      hoverPoints.forEach((point) => {
-        if (dist(point) < dist(nearest)) nearest = point;
-      });
-      showTip(nearest);
-    }
-
-    chart.addEventListener("pointermove", trackPointer);
-    chart.addEventListener("pointerdown", trackPointer);
-    chart.addEventListener("pointerleave", hideTip);
-    chart.addEventListener("pointercancel", hideTip);
   }
+
+  function hideTip() {
+    tip.classList.remove("is-visible");
+    const line = chart.querySelector("#crosshair");
+    if (line) line.setAttribute("visibility", "hidden");
+  }
+
+  function showTip(point) {
+    const box = chart.getBoundingClientRect();
+    const scale = box.width / VIEW_WIDTH;
+    let line = chart.querySelector("#crosshair");
+    if (!line) {
+      line = document.createElementNS("http://www.w3.org/2000/svg", "line");
+      line.setAttribute("id", "crosshair");
+      line.setAttribute("stroke", GREY);
+      line.setAttribute("stroke-dasharray", "2 3");
+      chart.append(line);
+    }
+    line.setAttribute("x1", point.x);
+    line.setAttribute("x2", point.x);
+    line.setAttribute("y1", top);
+    line.setAttribute("y2", bottom);
+    line.setAttribute("visibility", "visible");
+
+    tip.innerHTML = `<div class="tip-head" style="color:${point.colour}">${point.title}</div>` +
+      point.rows.map(([label, v]) => `<div class="tip-row">${label}<b>${v}</b></div>`).join("");
+    tip.classList.add("is-visible");
+    const half = tip.offsetWidth / 2;
+    const wanted = point.x * scale;
+    tip.style.left = `${Math.max(half + 2, Math.min(box.width - half - 2, wanted))}px`;
+    tip.style.top = `${Math.max(2, top * scale - 6)}px`;
+  }
+
+  function trackPointer(event) {
+    if (!hoverPoints.length) return;
+    const box = chart.getBoundingClientRect();
+    const scale = VIEW_WIDTH / box.width;
+    const px = (event.clientX - box.left) * scale;
+    const py = (event.clientY - box.top) * scale;
+    const dist = (point) => Math.hypot(point.x - px, point.y - py);
+    let nearest = hoverPoints[0];
+    hoverPoints.forEach((point) => {
+      if (dist(point) < dist(nearest)) nearest = point;
+    });
+    showTip(nearest);
+  }
+
+  chart.addEventListener("pointermove", trackPointer);
+  chart.addEventListener("pointerdown", trackPointer);
+  chart.addEventListener("pointerleave", hideTip);
+  chart.addEventListener("pointercancel", hideTip);
 
   /* no-store: rank data changes between deploys; a cached copy here can
      disagree with the page and leave table cells empty */
@@ -281,7 +298,18 @@
     .then(([text, roster, matchText]) => {
       const rows = text.trim().split("\n").filter(Boolean).map((line) => JSON.parse(line));
       fillMatches(matchText.trim().split("\n").filter(Boolean).map((line) => JSON.parse(line)));
-      draw(rows, roster);
+      fillTable(rows, roster);
+      draw(rows, roster, "flex");
+      if (toggle) {
+        toggle.addEventListener("click", (event) => {
+          const button = event.target.closest("button[data-queue]");
+          if (!button || button.classList.contains("is-active")) return;
+          toggle.querySelectorAll("button").forEach((b) =>
+            b.classList.toggle("is-active", b === button));
+          hideTip();
+          draw(rows, roster, button.dataset.queue);
+        });
+      }
     })
     .catch(() => {
       caption.textContent = "Rank data could not be loaded.";
