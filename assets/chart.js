@@ -24,7 +24,10 @@
   const COLOURS = ["#3b5dc9", "#38b764", "#ef7d57", "#5d275d",
     "#257179", "#41a6f6", "#566c86", "#94b0c2"];
   const GOAL_COLOUR = "#b13e53";
-  /* Light tone of a player's colour, used for their Solo line. */
+  /* Slight tint of a player's colour, used for their Solo line. Kept to 20%
+     toward white: research (APCA line contrast, Datawrapper) says lighter
+     tints fall below legible contrast for thin lines on white, so the queue
+     distinction is carried by dash, not tone. */
   const lighten = (hex, amount) => {
     const n = parseInt(hex.slice(1), 16);
     const mix = (c) => Math.round(c + (255 - c) * amount);
@@ -159,7 +162,7 @@
     const byPlayer = charted
       .map((name, i) => ({
         name,
-        colours: { flex: COLOURS[i % COLOURS.length], solo: lighten(COLOURS[i % COLOURS.length], 0.55) },
+        colours: { flex: COLOURS[i % COLOURS.length], solo: lighten(COLOURS[i % COLOURS.length], 0.2) },
         queues: ["flex", "solo"].map((queue) => ({
           queue,
           points: dates
@@ -204,8 +207,13 @@
       player.queues.forEach((line) => {
         const colour = player.colours[line.queue];
         const attrs = `data-player="${player.name}" data-queue="${line.queue}"`;
+        /* Flex solid, Solo dashed: dash reads at full colour strength and
+           survives colour-vision deficiency, unlike a light tint. */
+        const stroke = line.queue === "flex"
+          ? `stroke-width="2"`
+          : `stroke-width="1.75" stroke-dasharray="6 3" stroke-linecap="round"`;
         const points = line.points.map((pt) => `${x(pt.date)},${y(pt.value)}`).join(" ");
-        markup += `<polyline points="${points}" fill="none" stroke="${colour}" stroke-width="1.5" ${attrs}/>`;
+        markup += `<polyline points="${points}" fill="none" stroke="${colour}" ${stroke} ${attrs}/>`;
         /* A single snapshot has no line to show; mark it with a lone dot. */
         if (line.points.length === 1) {
           const pt = line.points[0];
@@ -240,13 +248,14 @@
     chart.innerHTML = markup;
     setOpacities();
 
-    /* Legend: two-tone swatch (dark Flex, light Solo); hovering a name
-       spotlights that player's lines. */
+    /* Legend: solid Flex half, dashed Solo half; hovering a name spotlights
+       that player's lines. */
     keys.innerHTML = byPlayer
       .map((player) =>
         `<li data-player="${player.name}"><svg viewBox="0 0 40 10" aria-hidden="true">` +
-        `<line x1="0" y1="5" x2="20" y2="5" stroke="${player.colours.flex}" stroke-width="2"/>` +
-        `<line x1="20" y1="5" x2="40" y2="5" stroke="${player.colours.solo}" stroke-width="2"/>` +
+        `<line x1="0" y1="5" x2="18" y2="5" stroke="${player.colours.flex}" stroke-width="2"/>` +
+        `<line x1="24" y1="5" x2="40" y2="5" stroke="${player.colours.solo}" stroke-width="2"` +
+        ` stroke-dasharray="4 2.5" stroke-linecap="round"/>` +
         `</svg>${player.name}</li>`)
       .join("");
     keys.querySelectorAll("li[data-player]").forEach((li) => {
