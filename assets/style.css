@@ -514,3 +514,9 @@ html {
 .lp-delta.down {
   color: #b13e53;
 }
+
+/* Rank cells wrap between chunks (rank / delta / record), never inside one */
+.rank-text,
+.match-record {
+  white-space: nowrap;
+}

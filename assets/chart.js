@@ -78,7 +78,13 @@
       rows.filter((row) => row.date === lastDate).forEach((row) => {
         const cell = document.querySelector(`[data-${queue}-for="${row.name}"]`);
         if (!cell) return;
-        cell.textContent = row[queue] ? rankText(row[queue]) : "Unranked";
+        /* Each chunk (rank, delta, record) is its own nowrap span so the
+           cell only ever wraps between chunks, never mid-phrase. */
+        cell.textContent = "";
+        const rank = document.createElement("span");
+        rank.className = "rank-text";
+        rank.textContent = row[queue] ? rankText(row[queue]) : "Unranked";
+        cell.append(rank);
         /* Baseline: the player's first snapshot with a rank in this queue -
            someone still in placements on day one gets a delta from the day
            they placed instead of none at all. */
@@ -91,8 +97,8 @@
           const span = document.createElement("span");
           span.className = `lp-delta ${delta > 0 ? "up" : delta < 0 ? "down" : ""}`;
           span.title = `Net LP since ${shortDate(start.date)}`;
-          span.textContent = ` ${arrow} ${delta > 0 ? "+" : delta < 0 ? "−" : ""}${Math.abs(delta)} LP`;
-          cell.appendChild(span);
+          span.textContent = `${arrow} ${delta > 0 ? "+" : delta < 0 ? "−" : ""}${Math.abs(delta)} LP`;
+          cell.append(" ", span);
         }
         /* Record for this queue, linking to the player's match page (subs
            have no match page). */
