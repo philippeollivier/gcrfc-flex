@@ -67,19 +67,10 @@
     `<text x="${x}" y="${y}" font-size="${size}" fill="${fill}"` +
     `${anchor ? ` text-anchor="${anchor}"` : ""} font-family="Helvetica Neue, Arial, sans-serif">${content}</text>`;
 
-  /* Match-history cells: Flex record, linking to the player's match page. */
-  function fillMatches(matches) {
-    document.querySelectorAll("[data-matches-for]").forEach((cell) => {
-      const name = cell.dataset.matchesFor;
-      const games = matches.filter((m) => m.name === name && m.queue === "flex");
-      const wins = games.filter((g) => g.win).length;
-      cell.innerHTML = `<a href="matches/${name.toLowerCase()}.html">(${wins}W ${games.length - wins}L)</a>`;
-    });
-  }
-
-  /* Rank cells (both queues): current rank plus net LP since the first
-     snapshot, as an arrow + number. */
-  function fillTable(rows, roster) {
+  /* Rank cells (both queues): current rank, net LP since the first snapshot
+     as an arrow + number, and the queue's record linking to the player's
+     match page. */
+  function fillTable(rows, roster, matches) {
     const sortedDates = [...new Set(rows.map((row) => row.date))].sort();
     const firstDate = sortedDates[0];
     const lastDate = sortedDates[sortedDates.length - 1];
@@ -94,14 +85,27 @@
         const start = sortedDates
           .map((d) => rows.find((r) => r.name === row.name && r.date === d))
           .find((r) => r && r[queue]);
-        if (!row[queue] || !start || start.date === lastDate) return;
-        const delta = value(row[queue]) - value(start[queue]);
-        const arrow = delta > 0 ? "↑" : delta < 0 ? "↓" : "→";
-        const span = document.createElement("span");
-        span.className = `lp-delta ${delta > 0 ? "up" : delta < 0 ? "down" : ""}`;
-        span.title = `Net LP since ${shortDate(start.date)}`;
-        span.textContent = ` ${arrow} ${delta > 0 ? "+" : delta < 0 ? "−" : ""}${Math.abs(delta)} LP`;
-        cell.appendChild(span);
+        if (row[queue] && start && start.date !== lastDate) {
+          const delta = value(row[queue]) - value(start[queue]);
+          const arrow = delta > 0 ? "↑" : delta < 0 ? "↓" : "→";
+          const span = document.createElement("span");
+          span.className = `lp-delta ${delta > 0 ? "up" : delta < 0 ? "down" : ""}`;
+          span.title = `Net LP since ${shortDate(start.date)}`;
+          span.textContent = ` ${arrow} ${delta > 0 ? "+" : delta < 0 ? "−" : ""}${Math.abs(delta)} LP`;
+          cell.appendChild(span);
+        }
+        /* Record for this queue, linking to the player's match page (subs
+           have no match page). */
+        const player = roster.find((p) => p.name === row.name);
+        if (player && !player.roles.includes("substitute")) {
+          const games = matches.filter((m) => m.name === row.name && m.queue === queue);
+          const wins = games.filter((g) => g.win).length;
+          const link = document.createElement("a");
+          link.className = "match-record";
+          link.href = `matches/${row.name.toLowerCase()}.html`;
+          link.textContent = `${wins}W ${games.length - wins}L`;
+          cell.append(" ", link);
+        }
       });
     });
 
@@ -363,8 +367,8 @@
   ])
     .then(([text, roster, matchText]) => {
       const rows = text.trim().split("\n").filter(Boolean).map((line) => JSON.parse(line));
-      fillMatches(matchText.trim().split("\n").filter(Boolean).map((line) => JSON.parse(line)));
-      fillTable(rows, roster);
+      const matches = matchText.trim().split("\n").filter(Boolean).map((line) => JSON.parse(line));
+      fillTable(rows, roster, matches);
       draw(rows, roster);
       if (toggle) {
         toggle.addEventListener("click", (event) => {
