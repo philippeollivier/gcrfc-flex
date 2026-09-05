@@ -126,3 +126,11 @@
 {"date": "2026-09-04", "name": "David", "flex": {"tier": "gold", "division": 4, "lp": 34, "wins": 29, "losses": 25}, "solo": {"tier": "gold", "division": 2, "lp": 1, "wins": 19, "losses": 21}}
 {"date": "2026-09-04", "name": "Evan", "flex": {"tier": "platinum", "division": 4, "lp": 90, "wins": 32, "losses": 24}, "solo": {"tier": "emerald", "division": 4, "lp": 0, "wins": 77, "losses": 65}}
 {"date": "2026-09-04", "name": "Kevin", "flex": {"tier": "gold", "division": 2, "lp": 27, "wins": 5, "losses": 1}, "solo": null}
+{"date": "2026-09-05", "name": "Phil", "flex": {"tier": "emerald", "division": 2, "lp": 62, "wins": 10, "losses": 17}, "solo": {"tier": "diamond", "division": 3, "lp": 25, "wins": 24, "losses": 21}}
+{"date": "2026-09-05", "name": "Adriene", "flex": {"tier": "emerald", "division": 2, "lp": 12, "wins": 9, "losses": 9}, "solo": {"tier": "gold", "division": 2, "lp": 62, "wins": 9, "losses": 6}}
+{"date": "2026-09-05", "name": "Matthew", "flex": {"tier": "emerald", "division": 3, "lp": 26, "wins": 13, "losses": 13}, "solo": {"tier": "gold", "division": 3, "lp": 40, "wins": 3, "losses": 3}}
+{"date": "2026-09-05", "name": "Manuel", "flex": {"tier": "gold", "division": 1, "lp": 16, "wins": 23, "losses": 23}, "solo": {"tier": "gold", "division": 3, "lp": 97, "wins": 14, "losses": 21}}
+{"date": "2026-09-05", "name": "Erica", "flex": {"tier": "gold", "division": 3, "lp": 99, "wins": 25, "losses": 21}, "solo": {"tier": "silver", "division": 2, "lp": 5, "wins": 17, "losses": 25}}
+{"date": "2026-09-05", "name": "David", "flex": {"tier": "gold", "division": 4, "lp": 16, "wins": 29, "losses": 26}, "solo": {"tier": "gold", "division": 2, "lp": 93, "wins": 24, "losses": 24}}
+{"date": "2026-09-05", "name": "Evan", "flex": {"tier": "platinum", "division": 4, "lp": 90, "wins": 32, "losses": 24}, "solo": {"tier": "emerald", "division": 4, "lp": 56, "wins": 80, "losses": 65}}
+{"date": "2026-09-05", "name": "Kevin", "flex": {"tier": "gold", "division": 2, "lp": 27, "wins": 5, "losses": 1}, "solo": null}
