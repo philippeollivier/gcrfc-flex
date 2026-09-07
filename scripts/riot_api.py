@@ -76,9 +76,16 @@ class Riot:
     def league_entries(self, puuid, region="na"):
         return self.get(ROUTING[region][0], f"/lol/league/v4/entries/by-puuid/{puuid}") or []
 
-    def match_ids(self, puuid, region="na", queue=None, start_time=None, count=100):
-        return self.get(ROUTING[region][1], f"/lol/match/v5/matches/by-puuid/{puuid}/ids",
-                        queue=queue, startTime=start_time, count=count) or []
+    def match_ids(self, puuid, region="na", queue=None, start_time=None):
+        # The endpoint returns at most 100 ids per request; page until a short page.
+        ids, start = [], 0
+        while True:
+            page = self.get(ROUTING[region][1], f"/lol/match/v5/matches/by-puuid/{puuid}/ids",
+                            queue=queue, startTime=start_time, start=start, count=100) or []
+            ids += page
+            if len(page) < 100:
+                return ids
+            start += 100
 
     def match(self, match_id, region="na"):
         return self.get(ROUTING[region][1], f"/lol/match/v5/matches/{match_id}")
