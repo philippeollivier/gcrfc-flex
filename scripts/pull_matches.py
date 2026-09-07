@@ -29,7 +29,7 @@ MATCHES = REPO / "data" / "matches.jsonl"
 RAW = REPO / "data" / "matches"  # full match-v5 JSON, Flex games only
 TIMELINES = REPO / "data" / "timelines"
 FULL_QUEUES = {440}
-SINCE = datetime.datetime(2026, 8, 19, tzinfo=datetime.timezone.utc)  # tracking start
+SINCE = datetime.datetime(2026, 7, 29, 19, tzinfo=datetime.timezone.utc)  # Season 3 start (patch 26.15, noon PT)
 QUEUES = {440: "flex", 420: "solo"}
 
 
