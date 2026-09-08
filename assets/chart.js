@@ -10,10 +10,11 @@
   const BLUE = "#0000ee";
   const RULE = "#e6e6e6";
   const VIEW_WIDTH = 640;
-  // Fixed x-axis: first pull date through the end of the 2026 ranked year
-  // (Season 3). Riot announces the exact end date about a month before it;
-  // X_END is an estimate ("early January 2027") until then - edit when known.
-  const X_START = "2026-08-19";
+  // Fixed x-axis: 2026 season start through the end of the ranked year.
+  // Points before 2026-08-19 are sparse League of Graphs backfill; daily Riot
+  // snapshots start there. Riot announces the exact end date about a month
+  // before it; X_END is an estimate ("early January 2027") - edit when known.
+  const X_START = "2026-01-08";
   const X_END = "2027-01-07";
   const TIERS = ["iron", "bronze", "silver", "gold", "platinum", "emerald",
     "diamond", "master", "grandmaster", "challenger"];
