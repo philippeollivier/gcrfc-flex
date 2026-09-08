@@ -15,9 +15,13 @@
     return `${SHORT_MONTHS[d.getMonth()]} ${d.getDate()}, ` +
       `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
   };
+  /* Remakes (sub-5-minute games) are listed but excluded from records,
+     matching Riot's own W/L totals. */
+  const isRemake = (g) => g.duration < 300;
   const record = (games) => {
-    const wins = games.filter((g) => g.win).length;
-    return `${wins}W ${games.length - wins}L`;
+    const played = games.filter((g) => !isRemake(g));
+    const wins = played.filter((g) => g.win).length;
+    return `${wins}W ${played.length - wins}L`;
   };
 
   fetch("../data/matches.jsonl", { cache: "no-store" })
@@ -40,7 +44,8 @@
         return `<tr><td><time datetime="${g.start}">${when(g.start)}</time></td>` +
           `<td>${QUEUES[g.queue] || g.queue}</td>` +
           `<td>${g.champion}</td><td>${POSITIONS[g.position] || g.position}</td>` +
-          `<td>${g.win ? "Win" : "Loss"}</td><td>${g.kills}/${g.deaths}/${g.assists}</td><td>${g.cs}</td>` +
+          `<td>${isRemake(g) ? "Remake" : g.win ? "Win" : "Loss"}</td>` +
+          `<td>${g.kills}/${g.deaths}/${g.assists}</td><td>${g.cs}</td>` +
           `<td>${raw}</td></tr>`;
       }).join("");
       const flex = games.filter((g) => g.queue === "flex");

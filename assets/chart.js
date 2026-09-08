@@ -10,11 +10,12 @@
   const BLUE = "#0000ee";
   const RULE = "#e6e6e6";
   const VIEW_WIDTH = 640;
-  // Fixed x-axis: 2026 season start through the end of the ranked year.
-  // Points before 2026-08-19 are sparse League of Graphs backfill; daily Riot
-  // snapshots start there. Riot announces the exact end date about a month
-  // before it; X_END is an estimate ("early January 2027") - edit when known.
-  const X_START = "2026-01-08";
+  // Fixed x-axis: first daily-snapshot date through the end of the ranked
+  // year. ranks.jsonl also holds sparse pre-X_START season history (League of
+  // Graphs backfill) used for the table's season LP deltas but not charted.
+  // Riot announces the exact end date about a month before it; X_END is an
+  // estimate ("early January 2027") - edit when known.
+  const X_START = "2026-08-19";
   const X_END = "2027-01-07";
   const TIERS = ["iron", "bronze", "silver", "gold", "platinum", "emerald",
     "diamond", "master", "grandmaster", "challenger"];
@@ -110,7 +111,10 @@
            have no match page). */
         const player = roster.find((p) => p.name === row.name);
         if (player && !player.roles.includes("substitute")) {
-          const games = matches.filter((m) => m.name === row.name && m.queue === queue);
+          /* Remakes (sub-5-minute games) don't count toward the record,
+             matching Riot's own W/L totals. */
+          const games = matches.filter((m) =>
+            m.name === row.name && m.queue === queue && m.duration >= 300);
           const wins = games.filter((g) => g.win).length;
           const link = document.createElement("a");
           link.className = "match-record";
@@ -175,7 +179,8 @@
     const charted = roster
       .filter((player) => !player.roles.includes("substitute"))
       .map((player) => player.name);
-    const rankRows = rows.filter((row) => charted.includes(row.name) && (row.flex || row.solo));
+    const rankRows = rows.filter((row) =>
+      charted.includes(row.name) && (row.flex || row.solo) && row.date >= X_START);
     if (!rankRows.length) return;
 
     const dates = [...new Set(rankRows.map((row) => row.date))].sort();
