@@ -9,6 +9,11 @@ on:
 permissions:
   contents: write
 
+# Never run two pulls at once (a long backfill could overlap the next cron tick).
+concurrency:
+  group: pull-ranks
+  cancel-in-progress: false
+
 jobs:
   pull:
     runs-on: ubuntu-latest
