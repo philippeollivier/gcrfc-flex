@@ -1,0 +1,50 @@
+name: Pull payloads (targeted)
+
+on:
+  workflow_dispatch:
+    inputs:
+      player:
+        description: "Roster name (blank = all)"
+        default: ""
+      champion:
+        description: "Riot championName (blank = all)"
+        default: ""
+      queue:
+        description: "solo or flex (blank = both)"
+        default: ""
+
+permissions:
+  contents: write
+
+# Shares the pull-ranks group so it never races the regular sweep.
+concurrency:
+  group: pull-ranks
+  cancel-in-progress: false
+
+jobs:
+  pull:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Fetch missing payloads
+        env:
+          RIOT_API_KEY: ${{ secrets.RIOT_API_KEY }}
+        run: |
+          python3 scripts/pull_payloads.py \
+            ${{ inputs.player && format('--player {0}', inputs.player) || '' }} \
+            ${{ inputs.champion && format('--champion {0}', inputs.champion) || '' }} \
+            ${{ inputs.queue && format('--queue {0}', inputs.queue) || '' }}
+
+      - name: Commit and push
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/
+          git diff --cached --quiet && { echo "No new payloads"; exit 0; }
+          git commit -m "Payloads: ${{ inputs.player || 'all' }} ${{ inputs.champion || '' }} ${{ inputs.queue || '' }}"
+          git push
