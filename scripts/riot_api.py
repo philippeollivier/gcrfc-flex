@@ -64,6 +64,10 @@ class Riot:
                     time.sleep(5)
                     continue
                 raise
+            except (urllib.error.URLError, TimeoutError, ConnectionError):
+                # Transient network trouble (connection reset, DNS blip, timeout).
+                time.sleep(5)
+                continue
         raise RuntimeError(f"Riot API gave up on {path}")
 
     # --- endpoints -------------------------------------------------------
