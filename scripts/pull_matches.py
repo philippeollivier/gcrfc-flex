@@ -2,8 +2,9 @@
 
 Writes one row per (match, player) to data/matches.jsonl, covering Ranked
 Flex (queue 440) and Ranked Solo/Duo (420) played since SINCE. For every
-Flex game it also stores:
+game (both queues) it also stores:
   data/matches/<matchId>.json        Riot's complete match-v5 payload
+and for Flex games only (timelines are ~50x the size of a payload):
   data/timelines/<matchId>.json      the match-v5 timeline (per-minute frames, events)
   data/matches/<matchId>.ranks.json  every participant's ranked standing at pull time
 Already stored files are skipped, so it is safe to run daily. A game several roster players shared is fetched once
@@ -28,7 +29,8 @@ PLAYERS = REPO / "data" / "players.json"
 MATCHES = REPO / "data" / "matches.jsonl"
 RAW = REPO / "data" / "matches"  # full match-v5 JSON, Flex games only
 TIMELINES = REPO / "data" / "timelines"
-FULL_QUEUES = {440}
+RAW_QUEUES = {440, 420}  # queues whose full match payload is stored
+FULL_QUEUES = {440}  # queues that also get timelines and rank sidecars
 SINCE = datetime.datetime(2026, 1, 8, 20, tzinfo=datetime.timezone.utc)  # 2026 ranked season start (Jan 8, noon PT)
 QUEUES = {440: "flex", 420: "solo"}
 
@@ -84,7 +86,7 @@ def main():
             for match_id in riot.match_ids(player["puuid"], region, queue=queue, start_time=since):
                 need_row = (match_id, player["name"]) not in existing
                 full = queue in FULL_QUEUES
-                need_raw = full and not (RAW / f"{match_id}.json").exists()
+                need_raw = queue in RAW_QUEUES and not (RAW / f"{match_id}.json").exists()
                 need_timeline = full and not (TIMELINES / f"{match_id}.json").exists()
                 need_ranks = full and not (RAW / f"{match_id}.ranks.json").exists()
                 if need_row or need_raw or need_timeline or need_ranks:
