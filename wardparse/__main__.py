@@ -10,7 +10,7 @@ import json
 import os
 import time
 
-from .extract import parse_to_file
+from .extract import parse_to_file, write_json_atomic
 from .gamebinary import get_binary
 from .rofl import read_version
 
@@ -39,14 +39,13 @@ def write_index(out):
     game as compact rows, which is what the map page loads."""
     games = []
     for fn in glob.glob(os.path.join(out, '*.json')):
-        if os.path.basename(fn) in ('index.json', 'wards.json', 'scrape_manifest.json'):
+        if os.path.basename(fn) in ('index.json', 'wards.json', 'scrape_manifest.json') or fn.endswith('.tmp'):
             continue
         with open(fn) as f:
             games.append(json.load(f))
     games.sort(key=lambda g: g['matchId'], reverse=True)
     rows = [summary(g) for g in games]
-    with open(os.path.join(out, 'index.json'), 'w') as f:
-        json.dump(rows, f, separators=(',', ':'))
+    write_json_atomic(os.path.join(out, 'index.json'), rows)
 
     cols = ['game', 'placed', 'died', 'x', 'z', 'type', 'team', 'role', 'champion', 'end', 'killer']
     wards = []
@@ -61,10 +60,9 @@ def write_index(out):
                           TYPES.index(w['type']), owner['team'], ROLES.index(role) if role else -1,
                           owner['champion'], ENDS.index(w['end']),
                           ps[w['killer']]['champion'] if w['killer'] is not None else None])
-    with open(os.path.join(out, 'wards.json'), 'w') as f:
-        json.dump({'games': [[g['matchId'], g['version'], round(g['gameLength'])] for g in games],
-                   'roles': ROLES, 'types': TYPES, 'ends': ENDS, 'cols': cols, 'wards': wards},
-                  f, separators=(',', ':'))
+    write_json_atomic(os.path.join(out, 'wards.json'),
+                      {'games': [[g['matchId'], g['version'], round(g['gameLength'])] for g in games],
+                       'roles': ROLES, 'types': TYPES, 'ends': ENDS, 'cols': cols, 'wards': wards})
     return rows
 
 
