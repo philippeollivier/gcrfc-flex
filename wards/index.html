@@ -1,0 +1,580 @@
+<!doctype html>
+<title>Rift Ward Atlas</title>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+  /* Single deliberate dark look; gold accent picks up the map's structure trim. */
+  :root {
+    color-scheme: dark;
+    --ink: #070d16;
+    --panel: #0d1624;
+    --panel-2: #122034;
+    --line: #1f2f45;
+    --gold: #c9a24a;
+    --gold-soft: #8c7440;
+    --text: #e7e2d4;
+    --muted: #8d97a8;
+    --blue: #4ea9ff;
+    --red: #ff5d62;
+    --w-trinket: #f2c94c;
+    --w-stealth: #57d68d;
+    --w-control: #ff5fa2;
+    --w-farsight: #6fd3ff;
+    --w-zombie: #b58cff;
+    --display: "Barlow Condensed", "Arial Narrow", sans-serif;
+    --body: "IBM Plex Sans", system-ui, sans-serif;
+    --mono: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body { margin: 0; background: var(--ink); color: var(--text); font: 14px/1.4 var(--body); overflow: hidden; }
+  button, select, input { font: inherit; color: inherit; }
+  :focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+
+  .app { height: 100%; display: grid; grid-template-columns: 190px minmax(0, 1fr); }
+
+  aside { background: var(--panel); border-right: 1px solid var(--line); padding: 14px 12px; display: flex; flex-direction: column; gap: 16px; overflow-y: auto; }
+  h1 { font: 700 20px/1 var(--display); letter-spacing: .06em; text-transform: uppercase; color: var(--gold); margin: 0; }
+  .group { display: flex; flex-direction: column; gap: 3px; }
+  .label { font: 600 11px/1 var(--display); letter-spacing: .14em; text-transform: uppercase; color: var(--muted); margin-bottom: 4px; }
+  .track { display: grid; grid-template-columns: 12px 1fr auto; align-items: center; gap: 9px; padding: 5px 8px; border-radius: 4px; border: 1px solid transparent; background: var(--panel-2); cursor: pointer; text-align: left; user-select: none; }
+  .track:hover { border-color: var(--gold-soft); }
+  .track.off { opacity: .35; }
+  .track .sw { width: 12px; height: 12px; border-radius: 3px; }
+  .track .sw.diamond { transform: rotate(45deg) scale(.8); border-radius: 1px; }
+  kbd { font: 500 10px var(--mono); color: var(--muted); border: 1px solid var(--line); border-radius: 3px; padding: 0 4px; min-width: 16px; text-align: center; }
+  .seg { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; border: 1px solid var(--line); border-radius: 4px; overflow: hidden; }
+  .seg button { background: var(--panel-2); border: 0; padding: 5px 2px; cursor: pointer; font-size: 12px; color: var(--muted); }
+  .seg button + button { border-left: 1px solid var(--line); }
+  .seg button.on { background: var(--gold); color: var(--ink); font-weight: 600; }
+  .check { display: flex; align-items: center; gap: 8px; font-size: 13px; cursor: pointer; margin-top: 4px; }
+  .check kbd { margin-left: auto; }
+  .sub { font-size: 11px; color: var(--muted); margin: 5px 0 1px; }
+  .keys { margin-top: auto; font-size: 11px; color: var(--muted); display: grid; grid-template-columns: auto 1fr; gap: 3px 8px; }
+  .keys b { font: 500 11px var(--mono); color: var(--text); }
+
+  .stage { position: relative; min-width: 0; background: #02060c; }
+  #map { position: absolute; inset: 0; width: 100%; height: 100%; display: block; cursor: grab; touch-action: none; }
+  #map.drag { cursor: grabbing; }
+
+  .bar { position: absolute; left: 12px; right: 12px; bottom: calc(12px + env(safe-area-inset-bottom, 0px)); display: flex; align-items: flex-end; gap: 12px; padding: 8px 12px; background: rgba(7, 13, 22, .88); border: 1px solid var(--line); border-radius: 6px; backdrop-filter: blur(4px); }
+  .play { width: 34px; height: 30px; border-radius: 4px; border: 1px solid var(--gold-soft); background: var(--panel-2); cursor: pointer; color: var(--gold); flex: none; }
+  #speed { background: var(--panel-2); border: 1px solid var(--line); border-radius: 4px; padding: 4px 6px; flex: none; height: 30px; }
+  .timecol { flex: 1; min-width: 60px; display: flex; flex-direction: column; gap: 2px; }
+  #hist { width: 100%; height: 40px; display: block; cursor: pointer; }
+  #scrub { width: 100%; margin: 0; accent-color: var(--gold); }
+  .clock { font: 700 22px/30px var(--display); letter-spacing: .05em; color: var(--gold); font-variant-numeric: tabular-nums; flex: none; min-width: 58px; text-align: right; }
+  .count { font: 12px/30px var(--mono); color: var(--muted); flex: none; white-space: nowrap; }
+
+  #tip { position: absolute; pointer-events: none; background: rgba(7,13,22,.96); border: 1px solid var(--gold-soft); border-radius: 5px; padding: 7px 10px; font-size: 12px; z-index: 5; white-space: nowrap; }
+  #tip .t { font: 600 15px var(--display); letter-spacing: .04em; }
+  #tip .kv { display: grid; grid-template-columns: auto auto; gap: 1px 10px; margin-top: 3px; color: var(--muted); }
+  #tip .kv span:nth-child(even) { color: var(--text); font-family: var(--mono); }
+  .msg { position: absolute; inset: 0; display: grid; place-items: center; color: var(--muted); padding: 24px; text-align: center; }
+
+  @media (max-width: 700px) {
+    body { overflow: auto; }
+    .app { grid-template-columns: 1fr; grid-template-rows: 75vh auto; height: auto; }
+    .stage { order: -1; height: 75vh; }
+    .keys { display: none; }
+  }
+</style>
+
+<div class="app">
+  <aside>
+    <h1>Ward Atlas</h1>
+    <div class="group" id="roles"><span class="label">Lane</span></div>
+    <div class="group" id="teams"><span class="label">Team</span></div>
+    <div class="group" id="types"><span class="label">Ward</span></div>
+    <div class="group">
+      <span class="label">View</span>
+      <div class="seg" id="view">
+        <button data-v="heat" class="on">Heatmap</button>
+        <button data-v="dots">Wards</button>
+      </div>
+      <div id="heatopts">
+        <div class="sub">Placed in the last</div>
+        <div class="seg" id="win">
+          <button data-w="60">1m</button><button data-w="120" class="on">2m</button><button data-w="300">5m</button><button data-w="99999">all</button>
+        </div>
+        <label class="check"><input type="checkbox" id="spots" checked> Top spots <kbd>H</kbd></label>
+      </div>
+    </div>
+    <div class="keys">
+      <b>click</b><span>only this</span>
+      <b>⇧ click</b><span>add / remove</span>
+      <b>⌥ click</b><span>all</span>
+      <b>key</b><span>same as click</span>
+      <b>space</b><span>play</span>
+      <b>← →</b><span>±10 s</span>
+      <b>0</b><span>reset view</span>
+    </div>
+  </aside>
+
+  <div class="stage" id="stage">
+    <canvas id="map" tabindex="0" aria-label="Summoner's Rift with ward placements"></canvas>
+    <div class="bar">
+      <button class="play" id="play" aria-label="Play">▶</button>
+      <select id="speed" aria-label="Playback speed">
+        <option value="8">8×</option><option value="16" selected>16×</option><option value="32">32×</option><option value="64">64×</option>
+      </select>
+      <div class="timecol">
+        <canvas id="hist" aria-label="Wards placed per game, by minute"></canvas>
+        <input type="range" id="scrub" min="0" max="100" step="1" value="0" aria-label="Game time">
+      </div>
+      <span class="clock" id="clock">00:00</span>
+      <span class="count" id="count"></span>
+    </div>
+    <div id="tip" hidden></div>
+  </div>
+</div>
+
+<script>
+(() => {
+  const $ = id => document.getElementById(id);
+  const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+  const DATA = '../data/wards/wards.json';
+
+  // The painted map (same art map.riftkit.net uses) spans 0..14890 game units
+  // on both axes; game Y grows north, image Y grows down.
+  const RIFT = 14890.087719819656;
+  const uv = (x, z) => [x / RIFT, 1 - z / RIFT];
+  // Summoner's Rift is symmetric across the diagonal between the two bases:
+  // (x, z) -> (M - z, M - x) maps red's side onto blue's (fit on inhibitor pairs).
+  const MIRROR_M = 14820;
+  const img = new Image(); img.onload = () => draw(); img.src = 'assets/map_rift.jpg';
+
+  // Standard sight radii in game units (not per-ward data; walls and brush are ignored).
+  const TYPES = [
+    { key: 'trinket', name: 'Trinket', color: css('--w-trinket'), vision: 900, hot: 'T' },
+    { key: 'stealth', name: 'Stealth', color: css('--w-stealth'), vision: 900, hot: 'S' },
+    { key: 'control', name: 'Control', color: css('--w-control'), vision: 900, hot: 'C' },
+    { key: 'farsight', name: 'Farsight', color: css('--w-farsight'), vision: 500, hot: 'F' },
+    { key: 'zombie', name: 'Zombie', color: css('--w-zombie'), vision: 900, hot: 'Z' },
+  ];
+  const ROLES = [
+    { key: 'TOP', name: 'Top', hot: '1' }, { key: 'JUNGLE', name: 'Jungle', hot: '2' }, { key: 'MIDDLE', name: 'Mid', hot: '3' },
+    { key: 'BOTTOM', name: 'Bot', hot: '4' }, { key: 'UTILITY', name: 'Support', hot: '5' },
+  ];
+  const TEAMS = [{ key: 100, name: 'Blue', color: css('--blue'), hot: 'B' }, { key: 200, name: 'Red', color: css('--red'), hot: 'R' }];
+  const ENDS = ['expired', 'replaced', 'killed', 'destroyed', 'up at game end'];
+
+  // Heatmap: a density grid over the map, blurred with a Gaussian of HEAT_SIGMA units.
+  const GRID = 180, CELL = RIFT / GRID, HEAT_SIGMA = 264;
+  // A "spot" counts a game if that lane placed a ward within SPOT_R units of it in the window.
+  const SPOT_R = 700, SPOT_SEP = 1300, MAX_SPOTS = 6, MIN_SPOT_SHARE = 0.08;
+
+  const st = { t: 480, playing: false, view: 'heat', win: 120, zoom: 1, cx: 0.5, cy: 0.5, hover: null,
+    on: { teams: new Set([100, 200]), roles: new Set([0, 1, 2, 3, 4]), types: new Set([0, 1, 2, 3, 4]) } };
+  let D = null, maxT = 0, filtered = [], spots = [], heat = null;
+
+  const fmt = s => { s = Math.max(0, Math.round(s)); return String(Math.floor(s / 60)).padStart(2, '0') + ':' + String(s % 60).padStart(2, '0'); };
+  const dur = s => s >= 60 ? `${Math.floor(s / 60)}m ${String(Math.round(s % 60)).padStart(2, '0')}s` : `${Math.round(s)}s`;
+  const pct = f => Math.round(f * 100) + '%';
+
+  // ---------------- selectors (GarageBand-style track toggles) ----------------
+  const groups = {
+    roles: { items: ROLES, id: i => i, sw: () => '<span class="sw" style="background:var(--muted)"></span>' },
+    teams: { items: TEAMS, id: i => TEAMS[i].key, sw: i => `<span class="sw" style="background:${TEAMS[i].color}"></span>` },
+    types: { items: TYPES, id: i => i, sw: i => `<span class="sw diamond" style="background:${TYPES[i].color}"></span>` },
+  };
+  // Click selects just that track (clicking the lone selected track brings all
+  // back); shift-click adds or removes it; option-click selects all.
+  function applyClick(g, i, e) {
+    const set = st.on[g], ids = groups[g].items.map((_, k) => groups[g].id(k)).filter((_, k) => !(groups[g].hidden && groups[g].hidden.has(k)));
+    const id = groups[g].id(i);
+    if (e.altKey) ids.forEach(x => set.add(x));
+    else if (e.shiftKey) { if (set.has(id)) { if (set.size > 1) set.delete(id); } else set.add(id); }
+    else {
+      const onlyThis = set.size === 1 && set.has(id);
+      set.clear();
+      (onlyThis ? ids : [id]).forEach(x => set.add(x));
+    }
+    renderGroups(); refilter();
+  }
+  function renderGroups() {
+    for (const [g, def] of Object.entries(groups)) {
+      const box = $(g);
+      box.querySelectorAll('.track').forEach(n => n.remove());
+      def.items.forEach((it, i) => {
+        if (def.hidden && def.hidden.has(i)) return;
+        const b = document.createElement('button');
+        b.className = 'track' + (st.on[g].has(def.id(i)) ? '' : ' off');
+        b.innerHTML = `${def.sw(i)}<span>${it.name}</span><kbd>${it.hot}</kbd>`;
+        b.onclick = e => applyClick(g, i, e);
+        box.appendChild(b);
+      });
+    }
+  }
+  function seg(id, attr, fn) {
+    document.querySelectorAll(`#${id} button`).forEach(b => b.onclick = () => {
+      document.querySelectorAll(`#${id} button`).forEach(x => x.classList.toggle('on', x === b)); fn(b.dataset[attr]);
+    });
+  }
+  seg('view', 'v', v => { st.view = v; $('heatopts').hidden = v !== 'heat'; recompute(); });
+  seg('win', 'w', w => { st.win = +w; recompute(); });
+  $('spots').onchange = () => recompute();
+
+  // ---------------- data ----------------
+  // Each ward becomes {g, team, placed, died, x, z, type, ...} with mirroring applied.
+  let WARDS = [];
+  function refilter() {
+    if (!D) return;
+    // With both teams selected, red side's wards are mirrored onto blue side so
+    // they pool into one "your side of the map" view; a single team shows as placed.
+    const on = st.on, mirror = on.teams.size === 2;
+    filtered = WARDS.filter(w => on.teams.has(w.team) && on.types.has(w.type) && on.roles.has(w.role)).map(w => {
+      if (!mirror || w.team === 100) return { ...w, px: w.x, pz: w.z };
+      return { ...w, px: MIRROR_M - w.z, pz: MIRROR_M - w.x };
+    });
+    drawHist(); recompute();
+  }
+  const windowStart = () => Math.max(0, st.t - st.win);
+  function visible() {
+    const t = st.t;
+    if (st.view === 'heat') { const a = windowStart(); return filtered.filter(w => w.placed > a && w.placed <= t); }
+    return filtered.filter(w => w.placed <= t && t < w.died);  // wards standing at this moment
+  }
+  // Team-games that could have warded in the window: each included team of each
+  // game still running at the window start. A spot's share is the fraction of
+  // these in which any of the selected lanes placed a ward there.
+  function samples() {
+    const a = windowStart();
+    return D.games.filter(g => g[2] > a).length * st.on.teams.size;
+  }
+
+  // ---------------- heatmap + spots ----------------
+  const kernel = (() => {
+    const r = Math.ceil(3 * HEAT_SIGMA / CELL), k = [];
+    for (let dy = -r; dy <= r; dy++) for (let dx = -r; dx <= r; dx++) {
+      const d2 = (dx * dx + dy * dy) * CELL * CELL;
+      k.push([dx, dy, Math.exp(-d2 / (2 * HEAT_SIGMA * HEAT_SIGMA))]);
+    }
+    return k;
+  })();
+  function recompute() {
+    if (!D) return;
+    spots = []; heat = null;
+    if (st.view === 'heat') {
+      const ws = visible(), grid = new Float32Array(GRID * GRID);
+      for (const w of ws) {
+        const cx = Math.floor(w.px / CELL), cy = Math.floor((RIFT - w.pz) / CELL);
+        for (const [dx, dy, v] of kernel) {
+          const x = cx + dx, y = cy + dy;
+          if (x >= 0 && y >= 0 && x < GRID && y < GRID) grid[y * GRID + x] += v;
+        }
+      }
+      let max = 0; for (const v of grid) if (v > max) max = v;
+      heat = { grid, max, n: ws.length };
+      if ($('spots').checked && ws.length) spots = findSpots(grid, ws);
+    }
+    draw();
+  }
+  function findSpots(grid, ws) {
+    // local maxima of the density, strongest first, kept at least SPOT_SEP apart
+    const peaks = [], R = 3;
+    for (let y = R; y < GRID - R; y++) for (let x = R; x < GRID - R; x++) {
+      const v = grid[y * GRID + x]; if (v <= 0) continue;
+      let top = true;
+      for (let dy = -R; dy <= R && top; dy++) for (let dx = -R; dx <= R; dx++) if (grid[(y + dy) * GRID + x + dx] > v) { top = false; break; }
+      if (top) peaks.push({ x: (x + .5) * CELL, z: RIFT - (y + .5) * CELL, v });
+    }
+    peaks.sort((a, b) => b.v - a.v);
+    const n = samples(), out = [];
+    for (const p of peaks) {
+      if (out.length >= MAX_SPOTS) break;
+      if (out.some(o => Math.hypot(o.x - p.x, o.z - p.z) < SPOT_SEP)) continue;
+      const near = ws.filter(w => Math.hypot(w.px - p.x, w.pz - p.z) < SPOT_R);
+      const games = new Set(near.map(w => w.g + ':' + w.team));
+      const share = games.size / n;
+      if (share < MIN_SPOT_SHARE) continue;
+      const byType = {}; near.forEach(w => byType[w.type] = (byType[w.type] || 0) + 1);
+      const topType = Object.entries(byType).sort((a, b) => b[1] - a[1])[0];
+      const times = near.map(w => w.placed).sort((a, b) => a - b);
+      const lasted = near.map(w => w.died - w.placed).sort((a, b) => a - b);
+      out.push({ ...p, share, count: near.length, games: games.size, n,
+        type: +topType[0], typeShare: topType[1] / near.length,
+        medianTime: times[times.length >> 1], medianLife: lasted[lasted.length >> 1] });
+    }
+    return out;
+  }
+
+  // ---------------- map ----------------
+  const cv = $('map'), ctx = cv.getContext('2d');
+  const heatCv = document.createElement('canvas'); heatCv.width = heatCv.height = GRID;
+  let view = { s: 1, ox: 0, oy: 0 };
+  const BUFFER = 0.1, MIN_ZOOM = 1 / (1 + 2 * BUFFER), MAX_ZOOM = 12;
+  // The map fits in the area above the time bar; the bar only overlaps it when zoomed in.
+  const fitH = () => Math.max(100, cv.height - ($('stage').querySelector('.bar').offsetHeight + 24) * (window.devicePixelRatio || 1));
+  function clampView() {
+    // keep at most a 10% margin of empty space around the map image
+    const S = Math.min(cv.width, fitH()) * st.zoom;
+    for (const [k, span] of [['cx', cv.width], ['cy', fitH()]]) {
+      const half = span / 2 / S, lo = half - BUFFER, hi = 1 + BUFFER - half;
+      st[k] = lo > hi ? 0.5 : Math.min(hi, Math.max(lo, st[k]));
+    }
+  }
+  function ramp(f) {
+    // transparent -> teal -> gold -> hot red
+    const stops = [[0, [20, 180, 170, 0]], [0.25, [40, 200, 180, 110]], [0.55, [240, 200, 70, 175]], [1, [255, 70, 50, 225]]];
+    for (let i = 1; i < stops.length; i++) if (f <= stops[i][0]) {
+      const [a, ca] = stops[i - 1], [b, cb] = stops[i], t = (f - a) / (b - a);
+      return ca.map((c, k) => c + (cb[k] - c) * t);
+    }
+    return stops[stops.length - 1][1];
+  }
+  function drawHeat(S) {
+    if (!heat || !heat.max) return;
+    const hctx = heatCv.getContext('2d'), im = hctx.createImageData(GRID, GRID);
+    for (let i = 0; i < heat.grid.length; i++) {
+      const f = Math.sqrt(heat.grid[i] / heat.max);  // sqrt keeps lighter-used spots visible
+      const [r, g, b, a] = ramp(f);
+      im.data[i * 4] = r; im.data[i * 4 + 1] = g; im.data[i * 4 + 2] = b; im.data[i * 4 + 3] = a;
+    }
+    hctx.putImageData(im, 0, 0);
+    ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = 'high';
+    ctx.drawImage(heatCv, view.ox, view.oy, S, S);
+  }
+  function draw() {
+    const d = window.devicePixelRatio || 1, r0 = cv.getBoundingClientRect();
+    cv.width = Math.round(r0.width * d); cv.height = Math.round(r0.height * d);
+    clampView();
+    const S = Math.min(cv.width, fitH()) * st.zoom;
+    view = { s: S, ox: cv.width / 2 - st.cx * S, oy: fitH() / 2 - st.cy * S };
+    ctx.fillStyle = '#02060c'; ctx.fillRect(0, 0, cv.width, cv.height);
+    if (img.complete && img.naturalWidth) {
+      ctx.imageSmoothingQuality = 'high';
+      if (st.view === 'heat') ctx.filter = 'saturate(0.55) brightness(0.75)';  // quieter map under the heat
+      ctx.drawImage(img, view.ox, view.oy, S, S); ctx.filter = 'none';
+    }
+    $('clock').textContent = fmt(st.t);
+    if (!D) return;
+    const P = (x, z) => { const [u, v] = uv(x, z); return [view.ox + u * S, view.oy + v * S]; };
+    const ws = visible();
+    if (st.view === 'dots' && st.hover && st.hover.px != null) {  // sight range of the hovered ward
+      const w = st.hover, [x, y] = P(w.px, w.pz), T = TYPES[w.type];
+      ctx.beginPath(); ctx.arc(x, y, T.vision / RIFT * S, 0, Math.PI * 2);
+      ctx.globalAlpha = 0.18; ctx.fillStyle = T.color; ctx.fill();
+      ctx.globalAlpha = 0.8; ctx.lineWidth = 1.5 * d; ctx.strokeStyle = T.color; ctx.stroke();
+      ctx.globalAlpha = 1;
+    }
+    if (st.view === 'heat') {
+      drawHeat(S);
+      drawSpots(P, d);
+      $('count').textContent = `${ws.length.toLocaleString()} wards · ${samples() / Math.max(1, st.on.teams.size) | 0} games`;
+      $('clock').textContent = st.win > 9999 ? 'all' : `${fmt(windowStart())}–${fmt(st.t)}`;
+      $('clock').style.fontSize = st.win > 9999 ? '' : '18px';
+      return;
+    }
+    $('clock').style.fontSize = '';
+    const dense = ws.length > 400;
+    const r = (dense ? 2.2 : 5.5) * Math.max(1, Math.sqrt(st.zoom)) * d;
+    ctx.globalAlpha = dense ? 0.7 : 1;
+    for (const w of ws) {
+      const [x, y] = P(w.px, w.pz), T = TYPES[w.type];
+      ctx.save(); ctx.translate(x, y); ctx.rotate(Math.PI / 4);
+      ctx.fillStyle = T.color; ctx.fillRect(-r * .72, -r * .72, r * 1.44, r * 1.44);
+      if (!dense) { ctx.strokeStyle = w.team === 100 ? css('--blue') : css('--red'); ctx.lineWidth = Math.max(1.5, r / 3); ctx.strokeRect(-r * .72, -r * .72, r * 1.44, r * 1.44); }
+      ctx.restore();
+    }
+    ctx.globalAlpha = 1;
+    if (st.hover && st.hover.px != null) { const [x, y] = P(st.hover.px, st.hover.pz); ctx.beginPath(); ctx.arc(x, y, Math.max(r, 5 * d) * 1.9, 0, Math.PI * 2); ctx.strokeStyle = css('--gold'); ctx.lineWidth = 2 * d; ctx.stroke(); }
+    const games = D.games.filter(g => g[2] > st.t).length;
+    $('count').textContent = `${ws.length.toLocaleString()} wards standing · ${games} games`;
+  }
+  function drawSpots(P, d) {
+    spots.forEach((s, i) => {
+      const [x, y] = P(s.x, s.z), R = 13 * d, hot = st.hover === s;
+      ctx.beginPath(); ctx.arc(x, y, R, 0, Math.PI * 2);
+      ctx.fillStyle = hot ? css('--gold') : 'rgba(7,13,22,.9)'; ctx.fill();
+      ctx.lineWidth = 2 * d; ctx.strokeStyle = css('--gold'); ctx.stroke();
+      ctx.fillStyle = hot ? css('--ink') : css('--gold');
+      ctx.font = `700 ${15 * d}px "Barlow Condensed", sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText(i + 1, x, y + d);
+      const label = pct(s.share);
+      ctx.font = `600 ${12 * d}px "IBM Plex Mono", monospace`; ctx.textAlign = 'left';
+      const tw = ctx.measureText(label).width;
+      ctx.fillStyle = 'rgba(7,13,22,.85)'; ctx.fillRect(x + R + 3 * d, y - 9 * d, tw + 8 * d, 18 * d);
+      ctx.fillStyle = css('--text'); ctx.fillText(label, x + R + 7 * d, y + d);
+    });
+  }
+
+  // ---------------- hover ----------------
+  function hitTest(mx, my) {
+    const d = window.devicePixelRatio || 1;
+    const P = (x, z) => { const [u, v] = uv(x, z); return [view.ox + u * view.s, view.oy + v * view.s]; };
+    if (st.view === 'heat') return spots.find(s => { const [x, y] = P(s.x, s.z); return Math.hypot(x - mx * d, y - my * d) < 16 * d; }) || null;
+    let best = null, bd = 12 * d;
+    for (const w of visible()) {
+      const [x, y] = P(w.px, w.pz), dd = Math.hypot(x - mx * d, y - my * d);
+      if (dd < bd) { bd = dd; best = w; }
+    }
+    return best;
+  }
+  function showTip(o, mx, my) {
+    const tip = $('tip');
+    if (!o) { tip.hidden = true; return; }
+    if (o.share != null) {
+      const T = TYPES[o.type], i = spots.indexOf(o) + 1;
+      const who = [...st.on.roles].map(r => ROLES[r].name).join(', ');
+      tip.innerHTML = `<div class="t" style="color:var(--gold)">Spot ${i}: ${pct(o.share)} of games</div><div class="kv">
+        <span>Who</span><span>${who}</span>
+        <span>When</span><span>${st.win > 9999 ? 'any time' : fmt(windowStart()) + '–' + fmt(st.t)}</span>
+        <span>Games</span><span>${o.games} of ${o.n}</span>
+        <span>Usual ward</span><span style="color:${T.color}">${T.name} (${pct(o.typeShare)})</span>
+        <span>Median placed</span><span>${fmt(o.medianTime)}</span>
+        <span>Median lasted</span><span>${dur(o.medianLife)}</span></div>`;
+    } else {
+      const T = TYPES[o.type], role = ROLES[o.role];
+      const end = ENDS[o.end] === 'killed' ? `killed by ${o.killer}` : ENDS[o.end];
+      tip.innerHTML = `<div class="t" style="color:${T.color}">${T.name} ward</div><div class="kv">
+        <span>Placed by</span><span>${o.champion} · ${role ? role.name : '?'} · ${o.team === 100 ? 'Blue' : 'Red'}</span>
+        <span>Placed</span><span>${fmt(o.placed)}</span><span>Lasted</span><span>${dur(o.died - o.placed)}, ${end}</span>
+        <span>Game</span><span>${D.games[o.g][0]}</span></div>`;
+    }
+    tip.hidden = false;
+    const box = $('stage').getBoundingClientRect();
+    tip.style.left = Math.min(box.width - tip.offsetWidth - 8, mx + 16) + 'px';
+    tip.style.top = Math.max(8, Math.min(box.height - tip.offsetHeight - 90, my + 16)) + 'px';
+  }
+
+  let drag = null;
+  cv.addEventListener('pointerdown', e => { drag = { x: e.clientX, y: e.clientY, cx: st.cx, cy: st.cy }; cv.setPointerCapture(e.pointerId); });
+  cv.addEventListener('pointermove', e => {
+    const r = cv.getBoundingClientRect(), mx = e.clientX - r.left, my = e.clientY - r.top;
+    if (drag) {
+      const d = window.devicePixelRatio || 1;
+      if (Math.abs(e.clientX - drag.x) + Math.abs(e.clientY - drag.y) > 3) cv.classList.add('drag');
+      st.cx = drag.cx - (e.clientX - drag.x) * d / view.s; st.cy = drag.cy - (e.clientY - drag.y) * d / view.s;
+      $('tip').hidden = true; draw(); return;
+    }
+    if (!D) return;
+    const o = hitTest(mx, my);
+    if (o !== st.hover) { st.hover = o; draw(); }
+    showTip(o, mx, my);
+  });
+  cv.addEventListener('pointerup', () => { cv.classList.remove('drag'); drag = null; });
+  cv.addEventListener('pointerleave', () => { st.hover = null; $('tip').hidden = true; draw(); });
+  cv.addEventListener('wheel', e => {
+    e.preventDefault();
+    const r = cv.getBoundingClientRect(), d = window.devicePixelRatio || 1;
+    const mx = (e.clientX - r.left) * d, my = (e.clientY - r.top) * d;
+    const u = (mx - view.ox) / view.s, v = (my - view.oy) / view.s;
+    st.zoom = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, st.zoom * Math.exp(-e.deltaY * 0.0015)));
+    const S = Math.min(cv.width, fitH()) * st.zoom;
+    st.cx = u - (mx - cv.width / 2) / S; st.cy = v - (my - fitH() / 2) / S;  // zoom about the cursor
+    draw();
+  }, { passive: false });
+
+  // ---------------- time + "when" histogram ----------------
+  const BIN = 30;
+  // First spawns of the epic monsters (current timings; the replays' camp-creation
+  // packets land a few seconds before each: dragon 4:53, grubs 7:53, herald 14:57,
+  // baron pit 19:40). Later dragons depend on when the first one dies, so only
+  // the first is shown.
+  const OBJECTIVES = [
+    { name: 'First dragon', t: 300, icon: 'obj_dragon' },
+    { name: 'Voidgrubs', t: 480, icon: 'obj_grub' },
+    { name: 'Rift Herald', t: 900, icon: 'obj_riftherald' },
+    { name: 'Baron Nashor', t: 1200, icon: 'obj_baron' },
+  ];
+  OBJECTIVES.forEach(o => { o.img = new Image(); o.img.onload = () => drawHist(); o.img.src = `assets/${o.icon}.png`; });
+  const ICON = 16, HIST_INSET = 8;
+  const histX = (t, W) => HIST_INSET + (t / maxT) * (W - 2 * HIST_INSET);
+  function drawHist() {
+    const c = $('hist'), d = window.devicePixelRatio || 1, W = c.clientWidth, H = c.clientHeight;
+    c.width = W * d; c.height = H * d;
+    const h = c.getContext('2d'); h.setTransform(d, 0, 0, d, 0, 0); h.clearRect(0, 0, W, H);
+    if (!D || !maxT) return;
+    const nb = Math.ceil(maxT / BIN), counts = new Float32Array(nb), alive = new Float32Array(nb);
+    for (const w of filtered) counts[Math.min(nb - 1, Math.floor(w.placed / BIN))]++;
+    for (const g of D.games) for (let b = 0; b < nb && b * BIN < g[2]; b++) alive[b]++;
+    const rate = Array.from(counts, (v, i) => alive[i] ? v / alive[i] : 0);  // wards per game per bin
+    const top = Math.max(...rate, 1e-9), inset = HIST_INSET, bw = (W - 2 * inset) / nb;  // inset matches the slider thumb
+    const barH = H - ICON - 2;  // top row holds the objective icons
+    const a = st.view === 'heat' ? windowStart() : st.t, b = st.t;
+    rate.forEach((v, i) => {
+      const x = inset + i * bw, bh = Math.max(v > 0 ? 1 : 0, barH * v / top), mid = (i + .5) * BIN;
+      h.fillStyle = mid >= a && mid <= b + BIN / 2 && st.view === 'heat' ? css('--gold') : '#3a4a63';
+      h.fillRect(x + .5, H - bh, Math.max(1, bw - 1), bh);
+    });
+    for (let m = 5; m * 60 < maxT; m += 5) {  // 5-minute ticks
+      const x = inset + (m * 60 / maxT) * (W - 2 * inset);
+      h.fillStyle = 'rgba(141,151,168,.35)'; h.fillRect(x, ICON + 2, 1, H - ICON - 2);
+    }
+    for (const o of OBJECTIVES) {
+      if (o.t > maxT) continue;
+      const x = histX(o.t, W);
+      h.fillStyle = 'rgba(201,162,74,.55)'; h.fillRect(x - .5, ICON, 1, H - ICON);
+      if (o.img.complete && o.img.naturalWidth) h.drawImage(o.img, x - ICON / 2, 0, ICON, ICON);
+    }
+  }
+  $('hist').addEventListener('mousemove', e => {
+    const r = $('hist').getBoundingClientRect(), mx = e.clientX - r.left;
+    const o = OBJECTIVES.find(o => Math.abs(histX(o.t, r.width) - mx) < ICON / 2 + 2 && e.clientY - r.top < ICON + 4);
+    $('hist').title = o ? `${o.name} spawns at ${fmt(o.t)}` : '';
+  });
+  function setTime(t) {
+    st.t = Math.max(0, Math.min(maxT, t)); $('scrub').value = st.t; drawHist(); recompute();
+  }
+  $('scrub').oninput = e => setTime(+e.target.value);
+  let last = 0;
+  function tick(ts) {
+    if (!st.playing) return;
+    setTime(st.t + (last ? (ts - last) / 1000 : 0) * +$('speed').value); last = ts;
+    if (st.t >= maxT) { togglePlay(false); return; }
+    requestAnimationFrame(tick);
+  }
+  function togglePlay(on) {
+    st.playing = on ?? !st.playing; last = 0;
+    $('play').textContent = st.playing ? '❚❚' : '▶'; $('play').setAttribute('aria-label', st.playing ? 'Pause' : 'Play');
+    if (st.playing) { if (st.t >= maxT) st.t = 0; requestAnimationFrame(tick); }
+  }
+  $('play').onclick = () => togglePlay();
+  $('hist').addEventListener('click', e => {
+    const r = $('hist').getBoundingClientRect();
+    const mx = e.clientX - r.left;
+    const o = OBJECTIVES.find(o => Math.abs(histX(o.t, r.width) - mx) < ICON / 2 + 2 && e.clientY - r.top < ICON + 4);
+    setTime(o ? o.t : maxT * (mx - HIST_INSET) / (r.width - 2 * HIST_INSET));
+  });
+
+  // ---------------- keyboard ----------------
+  const hotkeys = {};
+  for (const [g, def] of Object.entries(groups)) def.items.forEach((it, i) => hotkeys[it.hot] = [g, i]);
+  document.addEventListener('keydown', e => {
+    if (e.target.matches('select') || (e.target.matches('input[type=range]') && e.code !== 'Space')) return;
+    if (e.metaKey || e.ctrlKey) return;  // leave browser shortcuts alone
+    const k = e.key.length === 1 ? e.key.toUpperCase() : e.key;
+    const digit = e.code.startsWith('Digit') ? e.code.slice(5) : null;  // ⇧1 types '!', use the key code
+    const hk = hotkeys[digit || k];
+    if (hk) { e.preventDefault(); applyClick(hk[0], hk[1], { shiftKey: e.shiftKey, altKey: e.altKey }); return; }
+    if (e.code === 'Space') { e.preventDefault(); togglePlay(); }
+    else if (e.key === 'ArrowRight') setTime(st.t + 10);
+    else if (e.key === 'ArrowLeft') setTime(st.t - 10);
+    else if (k === 'H') { $('spots').checked = !$('spots').checked; recompute(); }
+    else if (k === '0') { st.zoom = 1; st.cx = st.cy = 0.5; draw(); }
+  });
+  window.addEventListener('resize', () => { drawHist(); draw(); });
+
+  // ---------------- boot ----------------
+  renderGroups();
+  fetch(DATA).then(r => r.json()).then(d => {
+    D = d; const c = Object.fromEntries(d.cols.map((k, i) => [k, i]));
+    WARDS = d.wards.map(w => ({ g: w[c.game], placed: w[c.placed], died: w[c.died], x: w[c.x], z: w[c.z], type: w[c.type],
+      team: w[c.team], role: w[c.role], champion: w[c.champion], end: w[c.end], killer: w[c.killer] }));
+    const present = new Set(WARDS.map(w => w.type));
+    groups.types.hidden = new Set(TYPES.map((_, i) => i).filter(i => !present.has(i)));
+    renderGroups();
+    maxT = Math.max(...d.games.map(g => g[2]));
+    $('scrub').max = maxT;
+    st.t = Math.min(st.t, maxT);
+    $('scrub').value = st.t;
+    refilter();
+  }).catch(err => {
+    console.error(err);
+    $('stage').insertAdjacentHTML('beforeend', '<div class="msg">No ward data yet. Parse replays with <code>python3 -m wardparse</code>, and serve the repo over HTTP (<code>python3 -m http.server</code>) rather than opening the file directly.</div>');
+  });
+})();
+</script>
