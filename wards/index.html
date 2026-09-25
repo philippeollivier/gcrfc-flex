@@ -101,19 +101,12 @@
         </div>
         <label class="check"><input type="checkbox" id="spots" checked> Top spots <kbd>H</kbd></label>
       </div>
-      <div id="dotopts" hidden>
-        <div class="seg" id="mode">
-          <button data-m="alive" class="on" title="Wards standing at this moment">Standing</button>
-          <button data-m="sofar" title="Every ward placed up to this moment">So far</button>
-          <button data-m="all" title="Every ward, whole game">All</button>
-        </div>
-      </div>
     </div>
     <div class="keys">
-      <b>click</b><span>toggle</span>
-      <b>⌘ click</b><span>only this</span>
+      <b>click</b><span>only this</span>
+      <b>⇧ click</b><span>add / remove</span>
       <b>⌥ click</b><span>all</span>
-      <b>⇧ key</b><span>only this</span>
+      <b>key</b><span>same as click</span>
       <b>space</b><span>play</span>
       <b>← →</b><span>±10 s</span>
       <b>0</b><span>reset view</span>
@@ -173,7 +166,7 @@
   // A "spot" counts a game if that lane placed a ward within SPOT_R units of it in the window.
   const SPOT_R = 700, SPOT_SEP = 1300, MAX_SPOTS = 6, MIN_SPOT_SHARE = 0.08;
 
-  const st = { t: 480, playing: false, view: 'heat', win: 120, mode: 'alive', zoom: 1, cx: 0.5, cy: 0.5, hover: null,
+  const st = { t: 480, playing: false, view: 'heat', win: 120, zoom: 1, cx: 0.5, cy: 0.5, hover: null,
     on: { teams: new Set([100, 200]), roles: new Set([0, 1, 2, 3, 4]), types: new Set([0, 1, 2, 3, 4]) } };
   let D = null, maxT = 0, filtered = [], spots = [], heat = null;
 
@@ -187,14 +180,18 @@
     teams: { items: TEAMS, id: i => TEAMS[i].key, sw: i => `<span class="sw" style="background:${TEAMS[i].color}"></span>` },
     types: { items: TYPES, id: i => i, sw: i => `<span class="sw diamond" style="background:${TYPES[i].color}"></span>` },
   };
+  // Click selects just that track (clicking the lone selected track brings all
+  // back); shift-click adds or removes it; option-click selects all.
   function applyClick(g, i, e) {
-    const set = st.on[g], ids = groups[g].items.map((_, k) => groups[g].id(k)), id = groups[g].id(i);
+    const set = st.on[g], ids = groups[g].items.map((_, k) => groups[g].id(k)).filter((_, k) => !(groups[g].hidden && groups[g].hidden.has(k)));
+    const id = groups[g].id(i);
     if (e.altKey) ids.forEach(x => set.add(x));
-    else if (e.metaKey || e.ctrlKey || e.shiftKey) {
+    else if (e.shiftKey) { if (set.has(id)) { if (set.size > 1) set.delete(id); } else set.add(id); }
+    else {
       const onlyThis = set.size === 1 && set.has(id);
       set.clear();
-      (onlyThis ? ids : [id]).forEach(x => set.add(x));  // ⌘-click the solo track again to bring the rest back
-    } else set.has(id) ? set.delete(id) : set.add(id);
+      (onlyThis ? ids : [id]).forEach(x => set.add(x));
+    }
     renderGroups(); refilter();
   }
   function renderGroups() {
@@ -216,9 +213,8 @@
       document.querySelectorAll(`#${id} button`).forEach(x => x.classList.toggle('on', x === b)); fn(b.dataset[attr]);
     });
   }
-  seg('view', 'v', v => { st.view = v; $('heatopts').hidden = v !== 'heat'; $('dotopts').hidden = v !== 'dots'; recompute(); });
+  seg('view', 'v', v => { st.view = v; $('heatopts').hidden = v !== 'heat'; recompute(); });
   seg('win', 'w', w => { st.win = +w; recompute(); });
-  seg('mode', 'm', m => { st.mode = m; recompute(); });
   $('spots').onchange = () => recompute();
 
   // ---------------- data ----------------
@@ -239,9 +235,7 @@
   function visible() {
     const t = st.t;
     if (st.view === 'heat') { const a = windowStart(); return filtered.filter(w => w.placed > a && w.placed <= t); }
-    if (st.mode === 'all') return filtered;
-    if (st.mode === 'sofar') return filtered.filter(w => w.placed <= t);
-    return filtered.filter(w => w.placed <= t && t < w.died);
+    return filtered.filter(w => w.placed <= t && t < w.died);  // wards standing at this moment
   }
   // Team-games that could have warded in the window: each included team of each
   // game still running at the window start. A spot's share is the fraction of
@@ -388,7 +382,7 @@
     ctx.globalAlpha = 1;
     if (st.hover && st.hover.px != null) { const [x, y] = P(st.hover.px, st.hover.pz); ctx.beginPath(); ctx.arc(x, y, Math.max(r, 5 * d) * 1.9, 0, Math.PI * 2); ctx.strokeStyle = css('--gold'); ctx.lineWidth = 2 * d; ctx.stroke(); }
     const games = D.games.filter(g => g[2] > st.t).length;
-    $('count').textContent = `${ws.length.toLocaleString()} wards · ${st.mode === 'all' ? D.games.length : games} games`;
+    $('count').textContent = `${ws.length.toLocaleString()} wards standing · ${games} games`;
   }
   function drawSpots(P, d) {
     spots.forEach((s, i) => {
