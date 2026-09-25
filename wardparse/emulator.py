@@ -45,8 +45,13 @@ class Decoded:
         return None
 
     def fvalue(self, off, lo, hi):
-        """Last write at `off` that is a float in [lo, hi]."""
-        v = self.value(off, lambda v: lo <= as_float(v) <= hi)
+        """Last write at `off` that is a float in [lo, hi]. Near-zero values
+        other than 0.0 are rejected: re-encoded bytes often read as tiny
+        denormal floats that would otherwise pass any range check."""
+        def ok(v):
+            f = as_float(v)
+            return lo <= f <= hi and (f == 0.0 or abs(f) >= 0.01)
+        v = self.value(off, ok)
         return None if v is None else as_float(v)
 
 

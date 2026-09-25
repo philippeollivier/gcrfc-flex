@@ -265,6 +265,11 @@ def extract(path, binary=None, log=print):
     mismatches = [c for c in checks if c['placedParsed'] != c['placedOfficial']]
     if mismatches:
         log('WARNING: ward counts differ from the game\'s own stats for %d players' % len(mismatches))
+    # Nothing can be warded on the map's outer rim; coordinates there mean a
+    # field was decoded from the wrong write.
+    off_map = sum(1 for w in wards if not (300 < w['x'] < 14600 and 300 < w['z'] < 14600))
+    if off_map:
+        log('WARNING: %d ward positions fall outside the playable map' % off_map)
 
     return {
         'matchId': os.path.basename(path).rsplit('.', 1)[0],
@@ -272,7 +277,7 @@ def extract(path, binary=None, log=print):
         'gameLength': round(game_length, 2),
         'players': players,
         'wards': sorted(wards, key=lambda w: w['placed']),
-        'validation': {'countsMatch': not mismatches, 'perPlayer': checks},
+        'validation': {'countsMatch': not mismatches, 'offMapPositions': off_map, 'perPlayer': checks},
     }
 
 

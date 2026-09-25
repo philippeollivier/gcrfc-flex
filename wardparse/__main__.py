@@ -27,16 +27,42 @@ def summary(game):
     }
 
 
+ROLES = ['TOP', 'JUNGLE', 'MIDDLE', 'BOTTOM', 'UTILITY']
+TYPES = ['trinket', 'stealth', 'control', 'farsight', 'zombie']
+ENDS = ['expired', 'replaced', 'killed', 'destroyed', 'game end']
+
+
 def write_index(out):
-    rows = []
+    """index.json: one summary row per game. wards.json: every ward of every
+    game as compact rows, which is what the map page loads."""
+    games = []
     for fn in glob.glob(os.path.join(out, '*.json')):
-        if os.path.basename(fn) in ('index.json', 'scrape_manifest.json'):
+        if os.path.basename(fn) in ('index.json', 'wards.json', 'scrape_manifest.json'):
             continue
         with open(fn) as f:
-            rows.append(summary(json.load(f)))
-    rows.sort(key=lambda r: r['matchId'], reverse=True)
+            games.append(json.load(f))
+    games.sort(key=lambda g: g['matchId'], reverse=True)
+    rows = [summary(g) for g in games]
     with open(os.path.join(out, 'index.json'), 'w') as f:
         json.dump(rows, f, separators=(',', ':'))
+
+    cols = ['game', 'placed', 'died', 'x', 'z', 'type', 'team', 'role', 'champion', 'end', 'killer']
+    wards = []
+    for gi, g in enumerate(games):
+        ps = g['players']
+        for w in g['wards']:
+            if w['owner'] is None:
+                continue
+            owner = ps[w['owner']]
+            role = owner['position'] if owner['position'] in ROLES else ''
+            wards.append([gi, round(w['placed']), round(w['placed'] + w['lifetime']), round(w['x']), round(w['z']),
+                          TYPES.index(w['type']), owner['team'], ROLES.index(role) if role else -1,
+                          owner['champion'], ENDS.index(w['end']),
+                          ps[w['killer']]['champion'] if w['killer'] is not None else None])
+    with open(os.path.join(out, 'wards.json'), 'w') as f:
+        json.dump({'games': [[g['matchId'], g['version'], round(g['gameLength'])] for g in games],
+                   'roles': ROLES, 'types': TYPES, 'ends': ENDS, 'cols': cols, 'wards': wards},
+                  f, separators=(',', ':'))
     return rows
 
 

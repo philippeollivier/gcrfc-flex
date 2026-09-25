@@ -92,6 +92,11 @@ class LeagueClient:
                          % (puuid, max(0, count - 1)))
         return r['games']['games']
 
+    def current_patch(self):
+        """'16.19' — only replays from this patch can be downloaded."""
+        v = self.request('GET', '/lol-patch/v1/game-version')
+        return '.'.join(v.split('.')[:2])
+
     def challenger_ladder(self):
         """Solo queue Challenger standings, best first (same ladder op.gg shows)."""
         lad = self.request('GET', '/lol-ranked/v1/apex-leagues/RANKED_SOLO_5x5/CHALLENGER')

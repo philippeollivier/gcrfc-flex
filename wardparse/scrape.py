@@ -5,8 +5,9 @@ then parse them.
 
 Everything goes through the running League client (no game is launched and
 no Riot API key is needed): the Challenger ladder, each player's match
-history, and the replay downloads. Only current-patch games can be
-downloaded; older ones come back 'missingOrExpired'.
+history, and the replay downloads. Only current-patch replays can be
+downloaded (the client calls older ones 'incompatible'), so each player's most
+recent current-patch games are used.
 """
 import argparse
 import json
@@ -48,6 +49,8 @@ def main(argv=None):
     me = lcu.summoner()
     print('League client: logged in as %s#%s' % (me.get('gameName'), me.get('tagLine')), flush=True)
     replays_dir = lcu.replays_dir()
+    patch = lcu.current_patch()
+    print('current patch: %s' % patch, flush=True)
 
     manifest = load_manifest()
     ladder = lcu.challenger_ladder()[:args.challenger]
@@ -57,22 +60,24 @@ def main(argv=None):
         manifest['ladder'][puuid] = {'position': rank['position'], 'lp': rank['leaguePoints'],
                                      'checked': time.strftime('%Y-%m-%d')}
         try:
-            history = lcu.match_history(puuid, args.games * 3)
+            history = lcu.match_history(puuid, 20)
         except RuntimeError as e:
             print('#%d: match history failed: %s' % (rank['position'], e), flush=True)
             continue
-        games = [g for g in history if g['queueId'] == RANKED_SOLO][:args.games]
-        me_in = next((pi['player'] for g in games for pi in g['participantIdentities']
+        games = [g for g in history if g['queueId'] == RANKED_SOLO
+                 and g['gameVersion'].startswith(patch + '.')][:args.games]
+        me_in = next((pi['player'] for g in history for pi in g['participantIdentities']
                       if pi['player'].get('puuid') == puuid), {})
         name = '%s#%s' % (me_in.get('gameName', '?'), me_in.get('tagLine', '?'))
         manifest['ladder'][puuid]['riotId'] = name
-        print('#%d %s (%d LP): %d ranked games' % (rank['position'], name, rank['leaguePoints'], len(games)), flush=True)
+        print('#%d %s (%d LP): %d ranked games on %s' % (rank['position'], name, rank['leaguePoints'], len(games), patch),
+              flush=True)
         for g in games:
             key = '%s_%d' % (g['platformId'], g['gameId'])
             entry = manifest['games'].setdefault(key, {'ladderPlayers': [], 'version': g['gameVersion']})
             if puuid not in entry['ladderPlayers']:
                 entry['ladderPlayers'].append(puuid)
-            if entry.get('state') != 'watch':
+            if entry.get('state') not in ('watch', 'incompatible', 'missingOrExpired'):
                 t = time.time()
                 try:
                     entry['state'] = lcu.download_replay(g)
