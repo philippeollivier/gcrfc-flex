@@ -87,7 +87,6 @@
     <h1>Ward Atlas</h1>
     <div class="group" id="roles"><span class="label">Lane</span></div>
     <div class="group" id="teams"><span class="label">Team</span></div>
-    <label class="check" title="Show red side's wards as if placed by blue side (the map is symmetric across the base-to-base diagonal)"><input type="checkbox" id="mirror" checked> Pool both sides <kbd>M</kbd></label>
     <div class="group" id="types"><span class="label">Ward</span></div>
     <div class="group">
       <span class="label">View</span>
@@ -109,7 +108,6 @@
           <button data-m="all" title="Every ward, whole game">All</button>
         </div>
       </div>
-      <label class="check"><input type="checkbox" id="vision"> Vision range <kbd>V</kbd></label>
     </div>
     <div class="keys">
       <b>click</b><span>toggle</span>
@@ -221,16 +219,16 @@
   seg('view', 'v', v => { st.view = v; $('heatopts').hidden = v !== 'heat'; $('dotopts').hidden = v !== 'dots'; recompute(); });
   seg('win', 'w', w => { st.win = +w; recompute(); });
   seg('mode', 'm', m => { st.mode = m; recompute(); });
-  $('vision').onchange = () => draw();
   $('spots').onchange = () => recompute();
-  $('mirror').onchange = () => refilter();
 
   // ---------------- data ----------------
   // Each ward becomes {g, team, placed, died, x, z, type, ...} with mirroring applied.
   let WARDS = [];
   function refilter() {
     if (!D) return;
-    const on = st.on, mirror = $('mirror').checked;
+    // With both teams selected, red side's wards are mirrored onto blue side so
+    // they pool into one "your side of the map" view; a single team shows as placed.
+    const on = st.on, mirror = on.teams.size === 2;
     filtered = WARDS.filter(w => on.teams.has(w.team) && on.types.has(w.type) && on.roles.has(w.role)).map(w => {
       if (!mirror || w.team === 100) return { ...w, px: w.x, pz: w.z };
       return { ...w, px: MIRROR_M - w.z, pz: MIRROR_M - w.x };
@@ -361,13 +359,11 @@
     if (!D) return;
     const P = (x, z) => { const [u, v] = uv(x, z); return [view.ox + u * S, view.oy + v * S]; };
     const ws = visible();
-    if ($('vision').checked) {
-      const src = st.view === 'heat' ? spots.map(s => ({ px: s.x, pz: s.z, type: s.type })) : ws;
-      ctx.globalAlpha = src.length > 400 ? 0.05 : 0.14;
-      for (const w of src) {
-        const [x, y] = P(w.px, w.pz), T = TYPES[w.type];
-        ctx.beginPath(); ctx.arc(x, y, T.vision / RIFT * S, 0, Math.PI * 2); ctx.fillStyle = T.color; ctx.fill();
-      }
+    if (st.view === 'dots' && st.hover && st.hover.px != null) {  // sight range of the hovered ward
+      const w = st.hover, [x, y] = P(w.px, w.pz), T = TYPES[w.type];
+      ctx.beginPath(); ctx.arc(x, y, T.vision / RIFT * S, 0, Math.PI * 2);
+      ctx.globalAlpha = 0.18; ctx.fillStyle = T.color; ctx.fill();
+      ctx.globalAlpha = 0.8; ctx.lineWidth = 1.5 * d; ctx.strokeStyle = T.color; ctx.stroke();
       ctx.globalAlpha = 1;
     }
     if (st.view === 'heat') {
@@ -563,9 +559,7 @@
     if (e.code === 'Space') { e.preventDefault(); togglePlay(); }
     else if (e.key === 'ArrowRight') setTime(st.t + 10);
     else if (e.key === 'ArrowLeft') setTime(st.t - 10);
-    else if (k === 'V') { $('vision').checked = !$('vision').checked; draw(); }
     else if (k === 'H') { $('spots').checked = !$('spots').checked; recompute(); }
-    else if (k === 'M') { $('mirror').checked = !$('mirror').checked; refilter(); }
     else if (k === '0') { st.zoom = 1; st.cx = st.cy = 0.5; draw(); }
   });
   window.addEventListener('resize', () => { drawHist(); draw(); });
