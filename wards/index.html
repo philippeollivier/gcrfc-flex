@@ -531,9 +531,18 @@
   // ---------------- keyboard ----------------
   const hotkeys = {};
   for (const [g, def] of Object.entries(groups)) def.items.forEach((it, i) => hotkeys[it.hot] = [g, i]);
+  // Shortcuts work whatever was clicked last: clicking the slider, a button or
+  // the speed menu gives it keyboard focus, so hand focus back to the page
+  // afterwards (otherwise the slider eats arrow keys and space re-clicks buttons).
+  document.addEventListener('pointerup', () => {
+    const a = document.activeElement;
+    if (a && a.matches('button, input[type=range], canvas')) a.blur();
+  });
+  $('speed').addEventListener('change', () => $('speed').blur());
   document.addEventListener('keydown', e => {
-    if (e.target.matches('select') || (e.target.matches('input[type=range]') && e.code !== 'Space')) return;
+    if (e.target.matches('select')) return;  // an open menu keeps its own keys
     if (e.metaKey || e.ctrlKey) return;  // leave browser shortcuts alone
+    if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') e.preventDefault();  // don't also nudge a focused slider
     const k = e.key.length === 1 ? e.key.toUpperCase() : e.key;
     const digit = e.code.startsWith('Digit') ? e.code.slice(5) : null;  // ⇧1 types '!', use the key code
     const hk = hotkeys[digit || k];
