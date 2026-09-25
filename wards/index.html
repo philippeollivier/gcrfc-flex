@@ -1,0 +1,579 @@
+<!doctype html>
+<title>Rift Ward Atlas</title>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+  /* Single deliberate dark look; gold accent picks up the map's structure trim. */
+  :root {
+    color-scheme: dark;
+    --ink: #070d16;
+    --panel: #0d1624;
+    --panel-2: #122034;
+    --line: #1f2f45;
+    --gold: #c9a24a;
+    --gold-soft: #8c7440;
+    --text: #e7e2d4;
+    --muted: #8d97a8;
+    --blue: #4ea9ff;
+    --red: #ff5d62;
+    --w-trinket: #f2c94c;
+    --w-stealth: #57d68d;
+    --w-control: #ff5fa2;
+    --w-farsight: #6fd3ff;
+    --w-zombie: #b58cff;
+    --display: "Barlow Condensed", "Arial Narrow", sans-serif;
+    --body: "IBM Plex Sans", system-ui, sans-serif;
+    --mono: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    margin: 0; background: var(--ink); color: var(--text);
+    font: 14px/1.45 var(--body);
+    padding-inline: 16px; padding-block: 12px;
+  }
+  button, select, input { font: inherit; color: inherit; }
+  button:focus-visible, select:focus-visible, input:focus-visible, canvas:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+
+  .app { display: grid; gap: 12px; grid-template-columns: 290px minmax(0, 1fr); grid-template-areas: "side main" "tl tl" "table table"; max-width: 1500px; margin: 0 auto; }
+  header.top { grid-column: 1 / -1; display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px 20px; }
+  h1 { font: 700 30px/1 var(--display); letter-spacing: .04em; text-transform: uppercase; margin: 0; color: var(--gold); }
+  .sub { color: var(--muted); font-size: 13px; }
+  .label { font: 600 12px/1 var(--display); letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
+
+  aside { grid-area: side; display: flex; flex-direction: column; gap: 14px; }
+  .box { background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 12px; display: flex; flex-direction: column; gap: 10px; }
+  select { background: var(--panel-2); border: 1px solid var(--line); border-radius: 4px; padding: 6px 8px; width: 100%; }
+  .meta { display: grid; grid-template-columns: auto 1fr; gap: 2px 10px; font-size: 12px; color: var(--muted); }
+  .meta b { color: var(--text); font-weight: 500; font-family: var(--mono); }
+
+  .team { display: flex; flex-direction: column; gap: 4px; }
+  .team-head { display: flex; justify-content: space-between; align-items: center; }
+  .team-head button { background: none; border: 0; padding: 0; cursor: pointer; font: 600 13px var(--display); letter-spacing: .1em; text-transform: uppercase; }
+  .player { display: grid; grid-template-columns: 10px 1fr auto; align-items: center; gap: 8px; padding: 5px 8px; border-radius: 4px; border: 1px solid transparent; background: var(--panel-2); cursor: pointer; text-align: left; }
+  .player:hover { border-color: var(--gold-soft); }
+  .player.off { opacity: .38; }
+  .player .dot { width: 10px; height: 10px; border-radius: 50%; }
+  .player .nm { display: flex; flex-direction: column; min-width: 0; }
+  .player .champ { font-weight: 600; font-size: 13px; }
+  .player .rid { color: var(--muted); font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .player .n { font: 500 12px var(--mono); color: var(--muted); font-variant-numeric: tabular-nums; }
+  .hint { font-size: 11px; color: var(--muted); }
+
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+  .chip { display: inline-flex; align-items: center; gap: 6px; padding: 4px 9px; border: 1px solid var(--line); border-radius: 999px; background: var(--panel-2); cursor: pointer; font-size: 12px; }
+  .chip.on { border-color: var(--gold-soft); }
+  .chip:not(.on) { opacity: .45; }
+  .chip i { width: 9px; height: 9px; transform: rotate(45deg); display: inline-block; }
+  .seg { display: grid; grid-template-columns: repeat(3, 1fr); border: 1px solid var(--line); border-radius: 4px; overflow: hidden; }
+  .seg button { background: var(--panel-2); border: 0; padding: 6px 4px; cursor: pointer; font-size: 12px; color: var(--muted); }
+  .seg button + button { border-left: 1px solid var(--line); }
+  .seg button.on { background: var(--gold); color: var(--ink); font-weight: 600; }
+  .row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; font-size: 12px; }
+  .row label { display: inline-flex; gap: 6px; align-items: center; cursor: pointer; }
+
+  main { grid-area: main; display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+  .mapwrap { position: relative; background: #02060c; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; aspect-ratio: 1 / 1; max-height: calc(100vh - 170px); width: 100%; max-width: 100%; margin-inline: auto; }
+  #map { width: 100%; height: 100%; display: block; cursor: grab; touch-action: none; }
+  #map.drag { cursor: grabbing; }
+  .mapbar { position: absolute; top: 8px; right: 8px; display: flex; gap: 6px; }
+  .mapbar button { background: rgba(13,22,36,.88); border: 1px solid var(--line); border-radius: 4px; padding: 4px 9px; cursor: pointer; font-size: 12px; }
+  .clock { position: absolute; left: 10px; top: 8px; font: 700 26px/1 var(--display); letter-spacing: .06em; color: var(--gold); text-shadow: 0 1px 6px #000; font-variant-numeric: tabular-nums; pointer-events: none; }
+  .counts { position: absolute; left: 10px; top: 38px; font: 12px var(--mono); color: var(--text); text-shadow: 0 1px 4px #000; pointer-events: none; }
+  #tip { position: absolute; pointer-events: none; background: rgba(7,13,22,.96); border: 1px solid var(--gold-soft); border-radius: 5px; padding: 8px 10px; font-size: 12px; min-width: 190px; z-index: 5; }
+  #tip .t { font: 600 15px var(--display); letter-spacing: .04em; }
+  #tip .kv { display: grid; grid-template-columns: auto 1fr; gap: 1px 10px; margin-top: 4px; color: var(--muted); }
+  #tip .kv span:nth-child(even) { color: var(--text); font-family: var(--mono); }
+
+  .timeline { grid-area: tl; background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 10px 12px; display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+  .controls { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .play { width: 38px; height: 30px; border-radius: 4px; border: 1px solid var(--gold-soft); background: var(--panel-2); cursor: pointer; color: var(--gold); font-size: 14px; }
+  #scrub { flex: 1 1 220px; accent-color: var(--gold); }
+  .tnum { font: 500 13px var(--mono); font-variant-numeric: tabular-nums; min-width: 96px; }
+  .lanes-wrap { overflow-x: auto; }
+  #lanes { display: block; width: 100%; cursor: pointer; }
+
+  .tablebox { grid-area: table; background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 10px 12px; min-width: 0; }
+  .tablebox header { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; flex-wrap: wrap; margin-bottom: 8px; }
+  .tablescroll { overflow: auto; max-height: 360px; }
+  table { border-collapse: collapse; width: 100%; font-size: 12px; font-variant-numeric: tabular-nums; }
+  th { position: sticky; top: 0; background: var(--panel); text-align: left; font: 600 12px var(--display); letter-spacing: .1em; text-transform: uppercase; color: var(--muted); padding: 6px 8px; border-bottom: 1px solid var(--line); cursor: pointer; white-space: nowrap; }
+  td { padding: 5px 8px; border-bottom: 1px solid #16233a; white-space: nowrap; }
+  td.mono { font-family: var(--mono); }
+  tr { cursor: pointer; }
+  tr:hover td { background: #101c2e; }
+  tr.sel td { background: #1d2a3f; }
+  .pill { display: inline-block; padding: 1px 7px; border-radius: 999px; font-size: 11px; border: 1px solid var(--line); }
+  .pill.killed { color: var(--red); border-color: #5a2a30; }
+  .pill.expired { color: var(--muted); }
+  .pill.replaced { color: var(--w-trinket); border-color: #5a4c26; }
+  .pill.game-end { color: var(--w-stealth); border-color: #22503a; }
+  .pill.destroyed { color: var(--w-zombie); }
+  .empty { color: var(--muted); padding: 30px; text-align: center; }
+
+  @media (max-width: 900px) {
+    .app { grid-template-columns: 1fr; grid-template-areas: "main" "side" "tl" "table"; }
+    .mapwrap { max-height: none; }
+  }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+
+<div class="app" id="app">
+  <header class="top">
+    <h1>Rift Ward Atlas</h1>
+    <span class="sub">Ward placements and lifetimes decoded from .rofl replays</span>
+  </header>
+
+  <aside>
+    <div class="box">
+      <span class="label">Game</span>
+      <select id="game"></select>
+      <div class="meta" id="meta"></div>
+    </div>
+    <div class="box" id="teams"></div>
+    <div class="box">
+      <span class="label">Ward types</span>
+      <div class="chips" id="types"></div>
+      <span class="label">Show</span>
+      <div class="seg" id="mode">
+        <button data-m="alive" class="on" title="Wards standing at the current time">Alive now</button>
+        <button data-m="sofar" title="Every ward placed up to the current time">Placed so far</button>
+        <button data-m="all" title="Every ward in the game">Whole game</button>
+      </div>
+      <span class="label">Color by</span>
+      <div class="seg" id="colorby">
+        <button data-c="type" class="on">Ward type</button>
+        <button data-c="player">Player</button>
+        <button data-c="team">Team</button>
+      </div>
+      <div class="row">
+        <label><input type="checkbox" id="vision" checked> Vision radius</label>
+        <label><input type="checkbox" id="deaths"> Dead-ward ghosts</label>
+      </div>
+    </div>
+  </aside>
+
+  <main>
+    <div class="mapwrap" id="mapwrap">
+      <canvas id="map" tabindex="0" aria-label="Summoner's Rift map with ward markers"></canvas>
+      <div class="clock" id="clock">00:00</div>
+      <div class="counts" id="counts"></div>
+      <div class="mapbar">
+        <button id="layer" title="Switch map art">Minimap art</button>
+        <button id="zin" aria-label="Zoom in">+</button>
+        <button id="zout" aria-label="Zoom out">−</button>
+        <button id="zreset">Reset</button>
+      </div>
+      <div id="tip" hidden></div>
+    </div>
+  </main>
+
+  <section class="timeline">
+    <div class="controls">
+      <button class="play" id="play" aria-label="Play">▶</button>
+      <select id="speed" aria-label="Playback speed" style="width:auto">
+        <option value="4">4×</option><option value="16" selected>16×</option><option value="32">32×</option><option value="64">64×</option>
+      </select>
+      <input type="range" id="scrub" min="0" max="100" step="0.1" value="0" aria-label="Game time">
+      <span class="tnum" id="tnum">00:00 / 00:00</span>
+    </div>
+    <div class="lanes-wrap"><canvas id="lanes" height="260" aria-label="Ward lifetimes per player"></canvas></div>
+    <span class="hint">Each bar is one ward, from placement to death. Click a bar to jump there. ✕ marks a ward killed by the enemy.</span>
+  </section>
+
+  <section class="tablebox">
+    <header>
+      <span class="label" id="tabletitle">Wards</span>
+      <span class="hint">Coordinates are game units (0–15000). Click a row to find it on the map.</span>
+    </header>
+    <div class="tablescroll">
+      <table>
+        <thead><tr>
+          <th data-k="placed">Placed</th><th data-k="owner">Player</th><th data-k="typeName">Ward</th>
+          <th data-k="lifetime">Lasted</th><th data-k="end">Ended</th><th data-k="died">Died</th><th data-k="x">X</th><th data-k="z">Y</th>
+        </tr></thead>
+        <tbody id="rows"></tbody>
+      </table>
+    </div>
+  </section>
+</div>
+
+<script>
+(() => {
+  const DATA = '../data/wards/';
+  let INDEX = [];
+  const $ = id => document.getElementById(id);
+  const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+
+  const TYPE_COLOR = { trinket: css('--w-trinket'), stealth: css('--w-stealth'), control: css('--w-control'), farsight: css('--w-farsight'), zombie: css('--w-zombie') };
+  const TYPE_LABEL = { trinket: 'Stealth Ward (Trinket)', stealth: 'Stealth Ward', control: 'Control Ward', farsight: 'Farsight Ward', zombie: 'Zombie Ward' };
+  const VISION = { trinket: 900, stealth: 900, control: 900, farsight: 500, zombie: 900 };
+  const TEAM_COLOR = { 100: css('--blue'), 200: css('--red') };
+  const PLAYER_COLORS = { 100: ['#7cc4ff', '#3d8bff', '#6ef0e6', '#a7a4ff', '#4fd1a5'], 200: ['#ff8a8f', '#ff5b3d', '#ffb347', '#ff6fd0', '#e0a0ff'] };
+  const POS = { TOP: 'Top', JUNGLE: 'Jungle', MIDDLE: 'Mid', BOTTOM: 'Bot', UTILITY: 'Support' };
+
+  // Game units -> image fraction. The painted map (same art map.riftkit.net uses)
+  // spans 0..14890 units on both axes; the in-game minimap uses Riot's published
+  // Summoner's Rift bounds. Game Y grows north, image Y grows down.
+  const RIFT = 14890.087719819656;
+  const LAYERS = {
+    rift: { src: 'assets/map_rift.jpg', uv: (x, z) => [x / RIFT, 1 - z / RIFT], unit: 1 / RIFT },
+    mini: { src: 'assets/map_minimap.png', uv: (x, z) => [(x + 120) / 14990, 1 - (z + 120) / 15100], unit: 1 / 14990 },
+  };
+
+  const st = { g: null, t: 0, playing: false, mode: 'alive', colorBy: 'type', layer: 'rift',
+    players: new Set(), types: new Set(Object.keys(TYPE_LABEL)), sel: null, hover: null,
+    zoom: 1, cx: 0.5, cy: 0.5, sortK: 'placed', sortDir: 1 };
+  const imgs = {};
+  for (const [k, L] of Object.entries(LAYERS)) { const im = new Image(); im.onload = draw; im.src = L.src; imgs[k] = im; }
+
+  const fmt = s => { if (s == null) return '—'; s = Math.max(0, Math.round(s)); return String(Math.floor(s / 60)).padStart(2, '0') + ':' + String(s % 60).padStart(2, '0'); };
+  const dur = s => s >= 60 ? `${Math.floor(s / 60)}m ${String(Math.round(s % 60)).padStart(2, '0')}s` : `${Math.round(s)}s`;
+  const endOf = w => w.died ?? w.placed + w.lifetime;
+  const pname = i => i == null ? 'unknown' : st.g.players[i].champion;
+
+  function playerColor(i) {
+    const p = st.g.players[i]; if (!p) return '#999';
+    const teamIdx = st.g.players.filter(q => q.team === p.team).indexOf(p);
+    return PLAYER_COLORS[p.team][teamIdx % 5];
+  }
+  function wardColor(w) {
+    if (st.colorBy === 'player') return playerColor(w.owner);
+    if (st.colorBy === 'team') return TEAM_COLOR[w.team] || '#999';
+    return TYPE_COLOR[w.type] || '#ccc';
+  }
+  const passesFilter = w => st.players.has(w.owner) && st.types.has(w.type);
+  function visibleWards() {
+    const t = st.t;
+    return st.g.wards.filter(w => {
+      if (!passesFilter(w)) return false;
+      if (st.mode === 'all') return true;
+      if (st.mode === 'sofar') return w.placed <= t;
+      return w.placed <= t && t < endOf(w);
+    });
+  }
+
+  // ---------------- sidebar ----------------
+  function buildGameSelect() {
+    $('game').innerHTML = INDEX.map((g, i) => {
+      const champs = g.players.map(p => p[0]).join(', ');
+      return `<option value="${i}" title="${champs}">${g.matchId} · patch ${g.version.split('.').slice(0, 2).join('.')} · ${fmt(g.gameLength)} · ${g.wards} wards</option>`;
+    }).join('');
+    $('game').onchange = e => loadGame(+e.target.value);
+  }
+  async function loadGame(i) {
+    const row = INDEX[i];
+    let g;
+    try {
+      g = await (await fetch(DATA + row.matchId + '.json')).json();
+    } catch (e) {
+      $('meta').innerHTML = `<span>Error</span><b>Couldn't load ${row.matchId}.json</b>`;
+      return;
+    }
+    st.g = g; st.t = 0; st.sel = null; st.playing = false;
+    st.players = new Set(st.g.players.map(p => p.index));
+    $('scrub').max = st.g.gameLength;
+    const v = st.g.validation;
+    const winner = st.g.players.find(p => p.win);
+    $('meta').innerHTML = `<span>Patch</span><b>${st.g.version}</b><span>Length</span><b>${fmt(st.g.gameLength)}</b>` +
+      `<span>Winner</span><b>${winner ? (winner.team === 100 ? 'Blue' : 'Red') : '—'}</b>` +
+      `<span>Check</span><b title="Parsed ward counts vs. the game's own end-of-game stats">${v.countsMatch ? 'placements match game stats' : 'counts differ from game stats'}</b>`;
+    buildTeams(); buildTypes(); renderTable();
+    setTime(Math.min(600, st.g.gameLength));  // open mid-laning so the map isn't empty
+  }
+  function buildTeams() {
+    const counts = {}; st.g.wards.forEach(w => counts[w.owner] = (counts[w.owner] || 0) + 1);
+    $('teams').innerHTML = [100, 200].map(team => {
+      const ps = st.g.players.filter(p => p.team === team);
+      return `<div class="team"><div class="team-head"><button data-team="${team}" style="color:${TEAM_COLOR[team]}">${team === 100 ? 'Blue side' : 'Red side'}</button><span class="label">wards</span></div>` +
+        ps.map(p => `<button class="player${st.players.has(p.index) ? '' : ' off'}" data-p="${p.index}" title="Click to toggle, double-click to show only this player">
+          <span class="dot" style="background:${playerColor(p.index)}"></span>
+          <span class="nm"><span class="champ">${p.champion} <span class="rid">· ${POS[p.position] || p.position}</span></span><span class="rid">${p.riotId}</span></span>
+          <span class="n">${counts[p.index] || 0}</span></button>`).join('') + '</div>';
+    }).join('') + '<span class="hint">Double-click a player to isolate them. Click a side name to toggle the whole team.</span>';
+    $('teams').querySelectorAll('.player').forEach(b => {
+      b.onclick = () => { const i = +b.dataset.p; st.players.has(i) ? st.players.delete(i) : st.players.add(i); refresh(); };
+      b.ondblclick = () => { st.players = new Set([+b.dataset.p]); refresh(); };
+    });
+    $('teams').querySelectorAll('[data-team]').forEach(b => b.onclick = () => {
+      const ids = st.g.players.filter(p => p.team === +b.dataset.team).map(p => p.index);
+      const allOn = ids.every(i => st.players.has(i));
+      ids.forEach(i => allOn ? st.players.delete(i) : st.players.add(i)); refresh();
+    });
+  }
+  function buildTypes() {
+    const present = [...new Set(st.g.wards.map(w => w.type))];
+    const order = Object.keys(TYPE_LABEL).filter(k => present.includes(k));
+    $('types').innerHTML = order.map(k => {
+      const n = st.g.wards.filter(w => w.type === k).length;
+      return `<button class="chip${st.types.has(k) ? ' on' : ''}" data-k="${k}"><i style="background:${TYPE_COLOR[k]}"></i>${TYPE_LABEL[k]} <span class="n">${n}</span></button>`;
+    }).join('');
+    $('types').querySelectorAll('.chip').forEach(b => b.onclick = () => { const k = b.dataset.k; st.types.has(k) ? st.types.delete(k) : st.types.add(k); refresh(); });
+  }
+  function segment(id, key, attr) {
+    $(id).querySelectorAll('button').forEach(b => b.onclick = () => {
+      st[key] = b.dataset[attr]; $(id).querySelectorAll('button').forEach(x => x.classList.toggle('on', x === b)); refresh();
+    });
+  }
+  function refresh() { buildTeams(); buildTypes(); draw(); drawLanes(); renderTable(); }
+
+  // ---------------- map ----------------
+  const cv = $('map'), ctx = cv.getContext('2d');
+  let view = { s: 1, ox: 0, oy: 0 };
+  function sizeCanvas(c) {
+    const r = c.getBoundingClientRect(), d = window.devicePixelRatio || 1;
+    c.width = Math.round(r.width * d); c.height = Math.round(r.height * d);
+    return d;
+  }
+  function computeView() {
+    const S = Math.min(cv.width, cv.height) * st.zoom;
+    view = { s: S, ox: cv.width / 2 - st.cx * S, oy: cv.height / 2 - st.cy * S };
+  }
+  const toPx = (u, v) => [view.ox + u * view.s, view.oy + v * view.s];
+  function draw() {
+    if (!st.g) return;
+    const d = sizeCanvas(cv); computeView();
+    ctx.fillStyle = '#02060c'; ctx.fillRect(0, 0, cv.width, cv.height);
+    const L = LAYERS[st.layer], im = imgs[st.layer];
+    if (im.complete && im.naturalWidth) {
+      ctx.imageSmoothingQuality = 'high';
+      ctx.drawImage(im, view.ox, view.oy, view.s, view.s);
+    }
+    const ws = visibleWards();
+    const r = Math.max(6, Math.min(14, 7 * Math.sqrt(st.zoom))) * d;
+    // vision radius first so markers sit on top
+    if ($('vision').checked && st.mode === 'alive') {
+      for (const w of ws) {
+        const [u, v] = L.uv(w.x, w.z), [px, py] = toPx(u, v);
+        const rr = VISION[w.type] * L.unit * view.s;
+        ctx.beginPath(); ctx.arc(px, py, rr, 0, Math.PI * 2);
+        ctx.fillStyle = hexA(wardColor(w), 0.10); ctx.fill();
+        ctx.strokeStyle = hexA(wardColor(w), 0.35); ctx.lineWidth = d; ctx.stroke();
+      }
+    }
+    if ($('deaths').checked && st.mode === 'alive') {
+      for (const w of st.g.wards) {
+        if (!passesFilter(w) || w.died == null || w.died > st.t || st.t - w.died > 60) continue;
+        const [u, v] = L.uv(w.x, w.z), [px, py] = toPx(u, v);
+        ctx.strokeStyle = hexA(wardColor(w), 0.5); ctx.lineWidth = 1.5 * d;
+        ctx.beginPath(); ctx.moveTo(px - r * .7, py - r * .7); ctx.lineTo(px + r * .7, py + r * .7); ctx.moveTo(px + r * .7, py - r * .7); ctx.lineTo(px - r * .7, py + r * .7); ctx.stroke();
+      }
+    }
+    for (const w of ws) {
+      const [u, v] = L.uv(w.x, w.z), [px, py] = toPx(u, v);
+      const fade = st.mode === 'alive' ? 1 : (w.placed <= st.t && st.t < endOf(w) ? 1 : 0.55);
+      marker(px, py, r, wardColor(w), TEAM_COLOR[w.team], fade, w === st.sel || w === st.hover);
+    }
+    $('clock').textContent = fmt(st.t);
+    const alive = st.g.wards.filter(w => passesFilter(w) && w.placed <= st.t && st.t < endOf(w));
+    const b = alive.filter(w => w.team === 100).length, rd = alive.length - b;
+    $('counts').innerHTML = `<span style="color:${TEAM_COLOR[100]}">${b} blue</span> · <span style="color:${TEAM_COLOR[200]}">${rd} red</span> wards standing` + (st.mode !== 'alive' ? ` · ${ws.length} shown` : '');
+  }
+  function marker(x, y, r, fill, ring, alpha, hi) {
+    ctx.save(); ctx.globalAlpha = alpha; ctx.translate(x, y); ctx.rotate(Math.PI / 4);
+    ctx.fillStyle = fill; ctx.strokeStyle = ring; ctx.lineWidth = Math.max(1.5, r / 3.2);
+    ctx.fillRect(-r * .72, -r * .72, r * 1.44, r * 1.44); ctx.strokeRect(-r * .72, -r * .72, r * 1.44, r * 1.44);
+    ctx.restore();
+    if (hi) { ctx.beginPath(); ctx.arc(x, y, r * 1.9, 0, Math.PI * 2); ctx.strokeStyle = css('--gold'); ctx.lineWidth = 2.5; ctx.stroke(); }
+  }
+  function hexA(hex, a) {
+    const h = hex.replace('#', ''); const n = parseInt(h.length === 3 ? h.split('').map(c => c + c).join('') : h, 16);
+    return `rgba(${n >> 16 & 255},${n >> 8 & 255},${n & 255},${a})`;
+  }
+  function wardAt(mx, my) {
+    const d = window.devicePixelRatio || 1, L = LAYERS[st.layer];
+    let best = null, bd = 14 * d;
+    for (const w of visibleWards()) {
+      const [u, v] = L.uv(w.x, w.z), [px, py] = toPx(u, v);
+      const dd = Math.hypot(px - mx * d, py - my * d);
+      if (dd < bd) { bd = dd; best = w; }
+    }
+    return best;
+  }
+  function showTip(w, mx, my) {
+    const tip = $('tip');
+    if (!w) { tip.hidden = true; return; }
+    const p = st.g.players[w.owner];
+    const ended = w.end === 'killed' ? `killed by ${pname(w.killer)}` : w.end === 'game end' ? 'still up at game end' : w.end === 'replaced' ? 'replaced (ward limit)' : w.end;
+    tip.innerHTML = `<div class="t" style="color:${TYPE_COLOR[w.type]}">${w.typeName}</div>
+      <div class="kv"><span>Player</span><span>${p ? p.champion + ' (' + (POS[p.position] || p.position) + ')' : '?'}</span>
+      <span>Placed</span><span>${fmt(w.placed)}</span><span>Lasted</span><span>${dur(w.lifetime)}</span>
+      <span>Ended</span><span>${ended}</span><span>Position</span><span>${Math.round(w.x)}, ${Math.round(w.z)}</span></div>`;
+    tip.hidden = false;
+    const wrap = $('mapwrap').getBoundingClientRect();
+    const tw = tip.offsetWidth, th = tip.offsetHeight;
+    tip.style.left = Math.min(wrap.width - tw - 6, mx + 14) + 'px';
+    tip.style.top = Math.min(wrap.height - th - 6, my + 14) + 'px';
+  }
+  let drag = null;
+  cv.addEventListener('pointerdown', e => { drag = { x: e.clientX, y: e.clientY, cx: st.cx, cy: st.cy, moved: false }; cv.setPointerCapture(e.pointerId); });
+  cv.addEventListener('pointermove', e => {
+    const r = cv.getBoundingClientRect(), mx = e.clientX - r.left, my = e.clientY - r.top;
+    if (drag) {
+      const d = window.devicePixelRatio || 1, dx = (e.clientX - drag.x) * d, dy = (e.clientY - drag.y) * d;
+      if (Math.abs(dx) + Math.abs(dy) > 3) { drag.moved = true; cv.classList.add('drag'); }
+      st.cx = drag.cx - dx / view.s; st.cy = drag.cy - dy / view.s; draw(); return;
+    }
+    const w = wardAt(mx, my);
+    if (w !== st.hover) { st.hover = w; draw(); }
+    showTip(w, mx, my);
+  });
+  cv.addEventListener('pointerup', e => {
+    cv.classList.remove('drag');
+    if (drag && !drag.moved) {
+      const r = cv.getBoundingClientRect(); const w = wardAt(e.clientX - r.left, e.clientY - r.top);
+      select(w, false);
+    }
+    drag = null;
+  });
+  cv.addEventListener('pointerleave', () => { st.hover = null; $('tip').hidden = true; draw(); });
+  cv.addEventListener('wheel', e => {
+    e.preventDefault();
+    const r = cv.getBoundingClientRect(), d = window.devicePixelRatio || 1;
+    const mx = (e.clientX - r.left) * d, my = (e.clientY - r.top) * d;
+    const u = (mx - view.ox) / view.s, v = (my - view.oy) / view.s;
+    zoomTo(st.zoom * Math.exp(-e.deltaY * 0.0015), u, v, mx, my);
+  }, { passive: false });
+  function zoomTo(z, u, v, mx, my) {
+    st.zoom = Math.min(12, Math.max(1, z));
+    const S = Math.min(cv.width, cv.height) * st.zoom;
+    if (u != null) { st.cx = u - (mx - cv.width / 2) / S; st.cy = v - (my - cv.height / 2) / S; }
+    if (st.zoom === 1) { st.cx = st.cy = 0.5; }
+    draw();
+  }
+  $('zin').onclick = () => zoomTo(st.zoom * 1.5);
+  $('zout').onclick = () => zoomTo(st.zoom / 1.5);
+  $('zreset').onclick = () => { st.zoom = 1; st.cx = st.cy = 0.5; draw(); };
+  $('layer').onclick = () => { st.layer = st.layer === 'rift' ? 'mini' : 'rift'; $('layer').textContent = st.layer === 'rift' ? 'Minimap art' : 'Full map'; draw(); };
+  $('vision').onchange = draw; $('deaths').onchange = draw;
+
+  // ---------------- timeline ----------------
+  const lc = $('lanes'), lctx = lc.getContext('2d');
+  const LANE = { left: 118, top: 18, row: 23 };
+  function laneOrder() { return [...st.g.players].sort((a, b) => a.team - b.team || a.index - b.index); }
+  function drawLanes() {
+    if (!st.g) return;
+    const d = window.devicePixelRatio || 1, W = lc.getBoundingClientRect().width;
+    const H = LANE.top + LANE.row * st.g.players.length + 22;
+    lc.style.height = H + 'px'; lc.width = W * d; lc.height = H * d;
+    lctx.setTransform(d, 0, 0, d, 0, 0); lctx.clearRect(0, 0, W, H);
+    const x0 = LANE.left, x1 = W - 10, T = st.g.gameLength, X = t => x0 + (x1 - x0) * t / T;
+    lctx.font = '11px "IBM Plex Mono", monospace'; lctx.textBaseline = 'middle';
+    for (let m = 0; m * 60 <= T; m += 5) {
+      const x = X(m * 60);
+      lctx.strokeStyle = '#1b2a40'; lctx.beginPath(); lctx.moveTo(x, LANE.top - 4); lctx.lineTo(x, H - 18); lctx.stroke();
+      lctx.fillStyle = css('--muted'); lctx.textAlign = 'center'; lctx.fillText(m + ':00', x, H - 8);
+    }
+    laneOrder().forEach((p, row) => {
+      const y = LANE.top + row * LANE.row;
+      const on = st.players.has(p.index);
+      lctx.globalAlpha = on ? 1 : 0.35;
+      lctx.textAlign = 'left'; lctx.fillStyle = TEAM_COLOR[p.team]; lctx.fillRect(0, y + 4, 3, LANE.row - 8);
+      lctx.fillStyle = css('--text'); lctx.font = '600 13px "Barlow Condensed", sans-serif';
+      lctx.fillText(p.champion, 9, y + LANE.row / 2);
+      lctx.fillStyle = css('--muted'); lctx.font = '11px "IBM Plex Sans", sans-serif';
+      lctx.fillText(POS[p.position] || '', 78, y + LANE.row / 2);
+      const ws = st.g.wards.filter(w => w.owner === p.index && st.types.has(w.type));
+      // stack overlapping bars into up to 3 sub-rows
+      const subs = [];
+      for (const w of ws) {
+        let k = subs.findIndex(e => e <= w.placed); if (k < 0) { k = subs.length; subs.push(0); }
+        subs[k] = endOf(w);
+        const nSub = 3, h = (LANE.row - 6) / nSub, yy = y + 3 + (k % nSub) * h;
+        const a = X(w.placed), b = Math.max(a + 2, X(endOf(w)));
+        lctx.fillStyle = hexA(wardColor(w), w === st.sel ? 1 : 0.8);
+        lctx.fillRect(a, yy, b - a, h - 1);
+        if (w.end === 'killed') { lctx.fillStyle = css('--red'); lctx.font = 'bold 9px sans-serif'; lctx.textAlign = 'center'; lctx.fillText('✕', b + 3, yy + h / 2); }
+        if (w === st.sel) { lctx.strokeStyle = css('--gold'); lctx.lineWidth = 2; lctx.strokeRect(a - 1, yy - 1, b - a + 2, h + 1); }
+        w._bar = [a, yy, b, yy + h];
+      }
+      lctx.globalAlpha = 1;
+    });
+    const px = X(st.t);
+    lctx.strokeStyle = css('--gold'); lctx.lineWidth = 2; lctx.beginPath(); lctx.moveTo(px, LANE.top - 8); lctx.lineTo(px, H - 18); lctx.stroke();
+  }
+  lc.addEventListener('click', e => {
+    const r = lc.getBoundingClientRect(), mx = e.clientX - r.left, my = e.clientY - r.top;
+    const hit = st.g.wards.find(w => w._bar && st.types.has(w.type) && mx >= w._bar[0] - 2 && mx <= w._bar[2] + 2 && my >= w._bar[1] - 1 && my <= w._bar[3] + 1);
+    if (hit) select(hit, true);
+    else if (mx > LANE.left) setTime(st.g.gameLength * (mx - LANE.left) / (r.width - 10 - LANE.left));
+  });
+
+  function setTime(t) {
+    st.t = Math.max(0, Math.min(st.g.gameLength, t));
+    $('scrub').value = st.t; $('tnum').textContent = `${fmt(st.t)} / ${fmt(st.g.gameLength)}`;
+    draw(); drawLanes();
+  }
+  $('scrub').oninput = e => setTime(+e.target.value);
+  let last = 0;
+  function tick(ts) {
+    if (!st.playing) return;
+    const dt = last ? (ts - last) / 1000 : 0; last = ts;
+    setTime(st.t + dt * +$('speed').value);
+    if (st.t >= st.g.gameLength) { togglePlay(false); return; }
+    requestAnimationFrame(tick);
+  }
+  function togglePlay(on) {
+    st.playing = on ?? !st.playing; last = 0;
+    $('play').textContent = st.playing ? '❚❚' : '▶'; $('play').setAttribute('aria-label', st.playing ? 'Pause' : 'Play');
+    if (st.playing) { if (st.t >= st.g.gameLength) st.t = 0; requestAnimationFrame(tick); }
+  }
+  $('play').onclick = () => togglePlay();
+  document.addEventListener('keydown', e => {
+    if (e.target.matches('input, select')) return;
+    if (e.code === 'Space') { e.preventDefault(); togglePlay(); }
+    if (e.code === 'ArrowRight') setTime(st.t + 10);
+    if (e.code === 'ArrowLeft') setTime(st.t - 10);
+  });
+
+  // ---------------- table ----------------
+  function select(w, jump) {
+    st.sel = w;
+    if (w && jump !== false) {
+      if (st.mode === 'alive' && !(w.placed <= st.t && st.t < endOf(w))) st.t = w.placed + 0.5;
+      const [u, v] = LAYERS[st.layer].uv(w.x, w.z);
+      if (st.zoom < 2.5) st.zoom = 2.5;
+      st.cx = u; st.cy = v;
+    }
+    setTime(st.t); renderTable();
+    if (w) { const tr = document.querySelector(`tr[data-id="${w.id}"]`); tr && tr.scrollIntoView({ block: 'nearest' }); }
+  }
+  function renderTable() {
+    const ws = st.g.wards.filter(passesFilter);
+    const k = st.sortK, dir = st.sortDir;
+    const val = w => k === 'owner' ? pname(w.owner) : k === 'died' ? (w.died ?? 1e9) : w[k];
+    ws.sort((a, b) => (val(a) > val(b) ? 1 : val(a) < val(b) ? -1 : 0) * dir);
+    $('tabletitle').textContent = `Wards (${ws.length})`;
+    if (!ws.length) { $('rows').innerHTML = '<tr><td colspan="8" class="empty">No wards match the current filters.</td></tr>'; return; }
+    $('rows').innerHTML = ws.map(w => {
+      const p = st.g.players[w.owner];
+      const ended = w.end === 'killed' ? `killed · ${pname(w.killer)}` : w.end === 'game end' ? 'up at game end' : w.end;
+      return `<tr data-id="${w.id}" class="${w === st.sel ? 'sel' : ''}">
+        <td class="mono">${fmt(w.placed)}</td>
+        <td><span style="color:${TEAM_COLOR[w.team]}">●</span> ${p ? p.champion : '?'} <span class="rid">${p ? (POS[p.position] || '') : ''}</span></td>
+        <td><span style="color:${TYPE_COLOR[w.type]}">◆</span> ${w.typeName}</td>
+        <td class="mono">${dur(w.lifetime)}</td>
+        <td><span class="pill ${w.end.replace(' ', '-')}">${ended}</span></td>
+        <td class="mono">${fmt(w.died)}</td>
+        <td class="mono">${Math.round(w.x)}</td><td class="mono">${Math.round(w.z)}</td></tr>`;
+    }).join('');
+    $('rows').querySelectorAll('tr[data-id]').forEach(tr => tr.onclick = () => select(st.g.wards.find(w => w.id === +tr.dataset.id), true));
+  }
+  document.querySelectorAll('th[data-k]').forEach(th => th.onclick = () => {
+    st.sortDir = st.sortK === th.dataset.k ? -st.sortDir : 1; st.sortK = th.dataset.k; renderTable();
+  });
+
+  segment('mode', 'mode', 'm'); segment('colorby', 'colorBy', 'c');
+  window.addEventListener('resize', () => { draw(); drawLanes(); });
+  fetch(DATA + 'index.json').then(r => r.json()).then(rows => {
+    INDEX = rows;
+    if (!INDEX.length) throw new Error('empty');
+    buildGameSelect(); loadGame(0);
+  }).catch(() => {
+    document.querySelector('main').innerHTML = '<div class="box empty">No games found in data/wards/index.json. Parse replays with <code>python3 -m wardparse &lt;replays&gt;</code>. Opening this file directly from disk blocks loading; serve the repo with <code>python3 -m http.server</code> instead.</div>';
+  });
+  document.fonts && document.fonts.ready.then(() => { draw(); drawLanes(); });
+})();
+</script>
