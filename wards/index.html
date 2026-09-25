@@ -95,10 +95,6 @@
         <button data-v="dots">Wards</button>
       </div>
       <div id="heatopts">
-        <div class="sub">Placed in the last</div>
-        <div class="seg" id="win">
-          <button data-w="60">1m</button><button data-w="120" class="on">2m</button><button data-w="300">5m</button><button data-w="99999">all</button>
-        </div>
         <label class="check"><input type="checkbox" id="spots" checked> Top spots <kbd>H</kbd></label>
       </div>
     </div>
@@ -166,7 +162,7 @@
   // A "spot" counts a game if that lane placed a ward within SPOT_R units of it in the window.
   const SPOT_R = 700, SPOT_SEP = 1300, MAX_SPOTS = 6, MIN_SPOT_SHARE = 0.08;
 
-  const st = { t: 480, playing: false, view: 'heat', win: 120, zoom: 1, cx: 0.5, cy: 0.5, hover: null,
+  const st = { t: 480, playing: false, view: 'heat', zoom: 1, cx: 0.5, cy: 0.5, hover: null,
     on: { teams: new Set([100, 200]), roles: new Set([0, 1, 2, 3, 4]), types: new Set([0, 1, 2, 3, 4]) } };
   let D = null, maxT = 0, filtered = [], spots = [], heat = null;
 
@@ -214,7 +210,6 @@
     });
   }
   seg('view', 'v', v => { st.view = v; $('heatopts').hidden = v !== 'heat'; recompute(); });
-  seg('win', 'w', w => { st.win = +w; recompute(); });
   $('spots').onchange = () => recompute();
 
   // ---------------- data ----------------
@@ -231,18 +226,15 @@
     });
     drawHist(); recompute();
   }
-  const windowStart = () => Math.max(0, st.t - st.win);
+  // Both views show wards standing at the current time.
   function visible() {
     const t = st.t;
-    if (st.view === 'heat') { const a = windowStart(); return filtered.filter(w => w.placed > a && w.placed <= t); }
-    return filtered.filter(w => w.placed <= t && t < w.died);  // wards standing at this moment
+    return filtered.filter(w => w.placed <= t && t < w.died);
   }
-  // Team-games that could have warded in the window: each included team of each
-  // game still running at the window start. A spot's share is the fraction of
-  // these in which any of the selected lanes placed a ward there.
+  // Team-games still running at the current time. A spot's share is the
+  // fraction of these with a ward from the selected lanes standing there.
   function samples() {
-    const a = windowStart();
-    return D.games.filter(g => g[2] > a).length * st.on.teams.size;
+    return D.games.filter(g => g[2] > st.t).length * st.on.teams.size;
   }
 
   // ---------------- heatmap + spots ----------------
@@ -363,12 +355,9 @@
     if (st.view === 'heat') {
       drawHeat(S);
       drawSpots(P, d);
-      $('count').textContent = `${ws.length.toLocaleString()} wards · ${samples() / Math.max(1, st.on.teams.size) | 0} games`;
-      $('clock').textContent = st.win > 9999 ? 'all' : `${fmt(windowStart())}–${fmt(st.t)}`;
-      $('clock').style.fontSize = st.win > 9999 ? '' : '18px';
+      $('count').textContent = `${ws.length.toLocaleString()} wards standing · ${samples() / Math.max(1, st.on.teams.size) | 0} games`;
       return;
     }
-    $('clock').style.fontSize = '';
     const dense = ws.length > 400;
     const r = (dense ? 2.2 : 5.5) * Math.max(1, Math.sqrt(st.zoom)) * d;
     ctx.globalAlpha = dense ? 0.7 : 1;
@@ -421,7 +410,7 @@
       const who = [...st.on.roles].map(r => ROLES[r].name).join(', ');
       tip.innerHTML = `<div class="t" style="color:var(--gold)">Spot ${i}: ${pct(o.share)} of games</div><div class="kv">
         <span>Who</span><span>${who}</span>
-        <span>When</span><span>${st.win > 9999 ? 'any time' : fmt(windowStart()) + '–' + fmt(st.t)}</span>
+        <span>At</span><span>${fmt(st.t)}</span>
         <span>Games</span><span>${o.games} of ${o.n}</span>
         <span>Usual ward</span><span style="color:${T.color}">${T.name} (${pct(o.typeShare)})</span>
         <span>Median placed</span><span>${fmt(o.medianTime)}</span>
@@ -494,10 +483,9 @@
     const rate = Array.from(counts, (v, i) => alive[i] ? v / alive[i] : 0);  // wards per game per bin
     const top = Math.max(...rate, 1e-9), inset = HIST_INSET, bw = (W - 2 * inset) / nb;  // inset matches the slider thumb
     const barH = H - ICON - 2;  // top row holds the objective icons
-    const a = st.view === 'heat' ? windowStart() : st.t, b = st.t;
     rate.forEach((v, i) => {
       const x = inset + i * bw, bh = Math.max(v > 0 ? 1 : 0, barH * v / top), mid = (i + .5) * BIN;
-      h.fillStyle = mid >= a && mid <= b + BIN / 2 && st.view === 'heat' ? css('--gold') : '#3a4a63';
+      h.fillStyle = Math.abs(mid - st.t) <= BIN / 2 ? css('--gold') : '#3a4a63';  // current bin
       h.fillRect(x + .5, H - bh, Math.max(1, bw - 1), bh);
     });
     for (let m = 5; m * 60 < maxT; m += 5) {  // 5-minute ticks
