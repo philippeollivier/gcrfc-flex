@@ -181,9 +181,12 @@ def _hero_ids(stream, n):
     turret or summon, so the n busiest alone isn't enough."""
     busy = collections.Counter(p.param for p in stream if p.param)
     top = dict(busy.most_common(n * 4))
-    best = max((sum(top.get(b + k, 0) for k in range(n)), b) for b in top
-               if all(b + k in top for k in range(n)))
-    return list(range(best[1], best[1] + n))
+    # the run must start near the busiest objects, but an AFK player's champion
+    # can be almost silent, so members only need to exist, not be busy
+    runs = [(sum(busy[b + k] for k in range(n)), b) for b in top if all(b + k in busy for k in range(n))]
+    if not runs:
+        raise ExtractionError('could not identify the champions')
+    return list(range(max(runs)[1], max(runs)[1] + n))
 
 
 MIN_GAME_LENGTH = 5 * 60  # shorter games are remakes: nothing to learn, too few wards to calibrate on
@@ -296,6 +299,15 @@ def extract(path, binary=None, log=print):
     }
 
 
+def write_json_atomic(path, obj, **kw):
+    """Write to a temp file then rename, so an interrupted run never leaves a
+    half-written file behind."""
+    tmp = path + '.tmp'
+    with open(tmp, 'w') as f:
+        json.dump(obj, f, separators=(',', ':'), **kw)
+    os.replace(tmp, path)
+
+
 def parse_to_file(path, out_json, binary=None):
     """Batch worker: extract one replay to JSON; returns a one-line status."""
     t = time.time()
@@ -303,7 +315,6 @@ def parse_to_file(path, out_json, binary=None):
         game = extract(path, binary=binary, log=lambda *a: None)
     except Exception as e:  # keep going through a batch
         return 'failed: %s' % e
-    with open(out_json, 'w') as f:
-        json.dump(game, f, separators=(',', ':'))
+    write_json_atomic(out_json, game)
     return '%d wards, counts match official stats: %s (%.0fs)' % (
         len(game['wards']), game['validation']['countsMatch'], time.time() - t)

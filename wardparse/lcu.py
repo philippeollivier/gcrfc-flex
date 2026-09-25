@@ -34,6 +34,8 @@ def _credentials():
         ps = subprocess.run(['ps', '-A', '-o', 'args'], capture_output=True, text=True).stdout
     except OSError:
         ps = ''
+    # only the League client's UI process; the Riot Client launcher has its own port and token
+    ps = '\n'.join(line for line in ps.splitlines() if 'LeagueClientUx' in line)
     port = re.search(r'--app-port=(\d+)', ps)
     token = re.search(r'--remoting-auth-token=([\w-]+)', ps)
     if port and token:
@@ -60,9 +62,14 @@ class LeagueClient:
         except urllib.error.HTTPError as e:
             detail = e.read().decode(errors='replace')
             raise RuntimeError('%s %s -> HTTP %d %s' % (method, path, e.code, detail)) from None
+        except (urllib.error.URLError, ConnectionError, TimeoutError) as e:
+            raise ClientNotRunning('Lost connection to the League client (%s).' % e) from None
 
     def summoner(self):
-        return self.request('GET', '/lol-summoner/v1/current-summoner')
+        try:
+            return self.request('GET', '/lol-summoner/v1/current-summoner')
+        except RuntimeError:
+            raise ClientNotRunning('League client is running but not logged in. Log in, then retry.') from None
 
     def platform(self):
         """Shard the logged-in account plays on, e.g. 'NA1'."""
@@ -86,10 +93,10 @@ class LeagueClient:
             raise
         return (meta or {}).get('state', 'unknown'), meta
 
-    def match_history(self, puuid, count=20):
+    def match_history(self, puuid, count=20, begin=0):
         """Recent games for any player on this shard (newest first)."""
-        r = self.request('GET', '/lol-match-history/v1/products/lol/%s/matches?begIndex=0&endIndex=%d'
-                         % (puuid, max(0, count - 1)))
+        r = self.request('GET', '/lol-match-history/v1/products/lol/%s/matches?begIndex=%d&endIndex=%d'
+                         % (puuid, begin, begin + max(0, count - 1)))
         return r['games']['games']
 
     def current_patch(self):
