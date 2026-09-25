@@ -11,6 +11,8 @@ import os
 import time
 
 from .extract import parse_to_file
+from .gamebinary import get_binary
+from .rofl import read_version
 
 REPO = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 DEFAULT_OUT = os.path.join(REPO, 'data', 'wards')
@@ -87,6 +89,10 @@ def main(argv=None):
         if args.force or not os.path.exists(out_json):
             todo.append((path, out_json))
     if todo:
+        # fetch each patch's game binary once, up front, so workers don't race to download it
+        if not args.binary:
+            for v in sorted({read_version(p) for p, _ in todo}):
+                get_binary(v)
         print('parsing %d replays with %d workers' % (len(todo), args.jobs), flush=True)
     with concurrent.futures.ProcessPoolExecutor(args.jobs) as pool:
         jobs = {pool.submit(parse_to_file, path, out_json, args.binary): path for path, out_json in todo}

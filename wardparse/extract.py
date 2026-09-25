@@ -62,10 +62,12 @@ class ExtractionError(Exception):
 
 
 def _find_spawn_type(em, stream, log):
-    """Packet type whose decoded strings include ward names.
+    """Packet type that spawns wards.
 
     Pass 1 samples every type to find the few that carry strings at all;
-    pass 2 scans those fully, since wards can be rare among spawns."""
+    pass 2 scans those fully, since wards can be rare among spawns. A hit
+    needs two ward names in one packet (object + skin, e.g. SightWard +
+    YellowTrinket): other packets, like sound events, mention one at most."""
     by_type = collections.defaultdict(list)
     for p in stream:
         if len(p.data) >= 24:
@@ -80,21 +82,20 @@ def _find_spawn_type(em, stream, log):
                     break
             except DecodeError:
                 continue
-    best = (0, None, None)
+    best = (0, None)
     for t in string_types:
-        hits = collections.Counter()
+        hits = 0
         for p in by_type[t]:
             try:
                 d = em.decode(t, p.data)
             except DecodeError:
                 continue
-            for off, s in d.strings.items():
-                if _ward_type(s):
-                    hits[off] += 1
-            if sum(hits.values()) >= 20:
-                break
-        if hits and sum(hits.values()) > best[0]:
-            best = (sum(hits.values()), t, hits.most_common(1)[0][0])
+            if sum(1 for s in d.strings.values() if _ward_type(s)) >= 2:
+                hits += 1
+                if hits >= 20:
+                    break
+        if hits > best[0]:
+            best = (hits, t)
     if not best[1]:
         raise ExtractionError('could not find the ward spawn packet')
     log('spawn packet: 0x%x' % best[1])
@@ -174,17 +175,31 @@ def _find_deaths(em, stream, ward_ids, heroes, spawn_type, log):
     return out
 
 
+def _hero_ids(stream, n):
+    """Champion net ids: n consecutive ids (in participant order) that are
+    among the busiest objects. A quiet support can be less busy than some
+    turret or summon, so the n busiest alone isn't enough."""
+    busy = collections.Counter(p.param for p in stream if p.param)
+    top = dict(busy.most_common(n * 4))
+    best = max((sum(top.get(b + k, 0) for k in range(n)), b) for b in top
+               if all(b + k in top for k in range(n)))
+    return list(range(best[1], best[1] + n))
+
+
+MIN_GAME_LENGTH = 5 * 60  # shorter games are remakes: nothing to learn, too few wards to calibrate on
+
+
 def extract(path, binary=None, log=print):
     version, meta, pkts = packets(path)
     stats = meta['statsJson']
+    if meta['gameLength'] / 1000.0 < MIN_GAME_LENGTH:
+        raise ExtractionError('skipped: remake (%.0f s game)' % (meta['gameLength'] / 1000.0))
     binary = binary or get_binary(version, log=log)
     em = PacketEmulator(binary)
     stream = [p for p in pkts if not p.keyframe]
     game_length = meta['gameLength'] / 1000.0
 
-    # Champions are the 10 busiest objects; their net ids follow participant order.
-    busiest = collections.Counter(p.param for p in stream if p.param)
-    hero_ids = sorted(n for n, _ in busiest.most_common(len(stats)))
+    hero_ids = _hero_ids(stream, len(stats))
     heroes = {nid: i for i, nid in enumerate(hero_ids)}
 
     spawn_type = _find_spawn_type(em, stream, log)

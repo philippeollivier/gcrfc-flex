@@ -16,6 +16,13 @@ class Packet:
     keyframe: bool
 
 
+def read_version(path):
+    """Patch version from the file header, without reading the whole replay."""
+    with open(path, 'rb') as f:
+        head = f.read(64)
+    return head[15:15 + head[14]].decode()
+
+
 def read_rofl(path):
     d = open(path, 'rb').read()
     assert d[:4] == b'RIOT'
@@ -30,8 +37,8 @@ def read_rofl(path):
     entries = []
     while o + 17 <= end:
         cid, nxt, typ, usz, csz = struct.unpack_from('<IIBII', d, o)
-        if typ not in (1, 2, 3, 4):
-            break  # trailing signature
+        if typ not in (1, 2, 3, 4) or o + 17 + (csz or usz) > end:
+            break  # trailing signature (its bytes can look like a header)
         o += 17
         if csz == 0:
             raw = d[o:o + usz]
