@@ -1,8 +1,7 @@
 /* Rank history chart. Reads data/ranks.jsonl (one JSON row per player per
-   pull date) and draws two lines per player - a dark tone for Flex, a light
-   tone of the same colour for Solo. The Flex | Solo toggle sets which queue
-   is full strength (the other drops to 20% opacity), and hovering a name in
-   the legend spotlights that player's lines. */
+   pull date) and draws one line per player per queue, one colour per player.
+   The Flex | Solo toggle shows only that queue's lines, and hovering a name
+   in the legend spotlights that player's line. */
 
 (function () {
   const INK = "#1a1a1a";
@@ -26,17 +25,6 @@
   const COLOURS = ["#3b5dc9", "#38b764", "#ef7d57", "#5d275d",
     "#257179", "#41a6f6", "#566c86", "#94b0c2"];
   const GOAL_COLOUR = "#b13e53";
-  /* Slight tint of a player's colour, used for their Solo line. Kept to 20%
-     toward white: research (APCA line contrast, Datawrapper) says lighter
-     tints fall below legible contrast for thin lines on white, so the queue
-     distinction is carried by dash, not tone. */
-  const lighten = (hex, amount) => {
-    const n = parseInt(hex.slice(1), 16);
-    const mix = (c) => Math.round(c + (255 - c) * amount);
-    const rgb = (mix(n >> 16) << 16) | (mix((n >> 8) & 255) << 8) | mix(n & 255);
-    return `#${rgb.toString(16).padStart(6, "0")}`;
-  };
-  const QUEUE_DIM = 0.2;   /* the queue the toggle is not on */
   const FOCUS_DIM = 0.06;  /* everyone else while a legend name is hovered */
 
   const chart = document.querySelector("#chart");
@@ -163,14 +151,16 @@
   let focusPlayer = null;
   const top = 18, bottom = 190, height = 228;
 
-  /* Line opacity from the toggle and any legend hover; the chart itself is
-     drawn once and only these opacities change. */
+  /* The chart is drawn once with both queues; the toggle shows only the
+     active queue's lines, and a legend hover dims everyone else's. */
   function setOpacities() {
     chart.querySelectorAll("[data-player]").forEach((el) => {
-      const opacity = focusPlayer
-        ? (el.dataset.player === focusPlayer ? 1 : FOCUS_DIM)
-        : (el.dataset.queue === activeQueue ? 1 : QUEUE_DIM);
-      el.setAttribute("opacity", opacity);
+      if (el.dataset.queue !== activeQueue) {
+        el.setAttribute("display", "none");
+        return;
+      }
+      el.removeAttribute("display");
+      el.setAttribute("opacity", focusPlayer && el.dataset.player !== focusPlayer ? FOCUS_DIM : 1);
     });
   }
 
@@ -188,7 +178,7 @@
     const byPlayer = charted
       .map((name, i) => ({
         name,
-        colours: { flex: COLOURS[i % COLOURS.length], solo: lighten(COLOURS[i % COLOURS.length], 0.2) },
+        colour: COLOURS[i % COLOURS.length],
         queues: ["flex", "solo"].map((queue) => ({
           queue,
           points: dates
@@ -231,15 +221,10 @@
 
     byPlayer.forEach((player) => {
       player.queues.forEach((line) => {
-        const colour = player.colours[line.queue];
+        const colour = player.colour;
         const attrs = `data-player="${player.name}" data-queue="${line.queue}"`;
-        /* Flex solid, Solo dashed: dash reads at full colour strength and
-           survives colour-vision deficiency, unlike a light tint. */
-        const stroke = line.queue === "flex"
-          ? `stroke-width="2"`
-          : `stroke-width="1.75" stroke-dasharray="6 3" stroke-linecap="round"`;
         const points = line.points.map((pt) => `${x(pt.date)},${y(pt.value)}`).join(" ");
-        markup += `<polyline points="${points}" fill="none" stroke="${colour}" ${stroke} ${attrs}/>`;
+        markup += `<polyline points="${points}" fill="none" stroke="${colour}" stroke-width="2" ${attrs}/>`;
         /* A single snapshot has no line to show; mark it with a lone dot. */
         if (line.points.length === 1) {
           const pt = line.points[0];
@@ -274,14 +259,11 @@
     chart.innerHTML = markup;
     setOpacities();
 
-    /* Legend: solid Flex half, dashed Solo half; hovering a name spotlights
-       that player's lines. */
+    /* Legend: hovering a name spotlights that player's line. */
     keys.innerHTML = byPlayer
       .map((player) =>
         `<li data-player="${player.name}"><svg viewBox="0 0 40 10" aria-hidden="true">` +
-        `<line x1="0" y1="5" x2="18" y2="5" stroke="${player.colours.flex}" stroke-width="2"/>` +
-        `<line x1="24" y1="5" x2="40" y2="5" stroke="${player.colours.solo}" stroke-width="2"` +
-        ` stroke-dasharray="4 2.5" stroke-linecap="round"/>` +
+        `<line x1="0" y1="5" x2="40" y2="5" stroke="${player.colour}" stroke-width="2"/>` +
         `</svg>${player.name}</li>`)
       .join("");
     keys.querySelectorAll("li[data-player]").forEach((li) => {
@@ -301,7 +283,7 @@
         line.points.map((pt) => ({
           x: x(pt.date),
           y: y(pt.value),
-          colour: player.colours[line.queue],
+          colour: player.colour,
           queue: line.queue,
           title: player.name,
           rows: [[`${shortDate(pt.date)} · ${line.queue === "flex" ? "Flex" : "Solo"}`,
@@ -347,18 +329,18 @@
     const scale = VIEW_WIDTH / box.width;
     const px = (event.clientX - box.left) * scale;
     const py = (event.clientY - box.top) * scale;
-    /* Points on the dimmed queue are harder to aim at on purpose: prefer the
-       active queue unless the pointer is clearly closer to the other one. */
+    /* Only the visible queue's points are hover targets; a spotlit player's
+       points win over dimmed ones unless the pointer is clearly closer. */
     const dist = (point) => {
-      const active = focusPlayer
-        ? point.title === focusPlayer
-        : point.queue === activeQueue;
-      return Math.hypot(point.x - px, point.y - py) * (active ? 1 : 2.5);
+      if (point.queue !== activeQueue) return Infinity;
+      const dimmed = focusPlayer && point.title !== focusPlayer;
+      return Math.hypot(point.x - px, point.y - py) * (dimmed ? 2.5 : 1);
     };
-    let nearest = hoverPoints[0];
+    let nearest = null;
     hoverPoints.forEach((point) => {
-      if (dist(point) < dist(nearest)) nearest = point;
+      if (!nearest || dist(point) < dist(nearest)) nearest = point;
     });
+    if (!nearest || dist(nearest) === Infinity) return;
     showTip(nearest);
   }
 
