@@ -73,7 +73,11 @@ class Riot:
     # --- endpoints -------------------------------------------------------
 
     def puuid(self, game_name, tag_line, region="na"):
-        data = self.get(ROUTING[region][1],
+        # account-v1 is only served on americas/asia/europe - never sea.
+        host = ROUTING[region][1]
+        if host == "sea":
+            host = "asia"
+        data = self.get(host,
                         f"/riot/account/v1/accounts/by-riot-id/{urllib.parse.quote(game_name)}/{urllib.parse.quote(tag_line)}")
         return data["puuid"] if data else None
 
