@@ -10,8 +10,10 @@ Graphs refreshed the profile, so coverage is sparse and irregular.
 Rows for dates before our own tracking began (2026-08-19) are merged into
 data/ranks.jsonl, marked "source": "leagueofgraphs", with wins/losses null
 (League of Graphs does not expose historical W/L). Re-running replaces the
-backfilled rows of players whose page is present and leaves everyone else's
-untouched, so pages can be supplied a few at a time.
+backfilled values only for the (player, queue) pairs whose page is present
+and leaves everything else untouched, so pages can be supplied a few at a
+time. A player with a separate solo account (soloSlug/soloRegion) uses that
+account's page for solo history, and their main page for flex only.
 
     python3 scripts/backfill_lp_leagueofgraphs.py ~/Downloads
 """
@@ -66,41 +68,67 @@ def graph_points(html, graph_id):
         yield when.date().isoformat(), int(ts), rank
 
 
+REGION_LABELS = {"na": "NA", "oce": "OCE"}  # as League of Graphs titles pages
+
+
+def page_name(slug, region):
+    game_name, _, tag = slug.rpartition("-")
+    return f"{game_name}#{tag} ({REGION_LABELS.get(region, region.upper())}) - LeagueOfGraphs.html"
+
+
 def main():
     pages_dir = pathlib.Path(sys.argv[1] if len(sys.argv) > 1 else ".").expanduser()
     players = json.loads(PLAYERS.read_text())
 
-    new_rows = {}  # (date, name) -> row
-    parsed = set()  # players whose page was found: only their old rows are replaced
+    new_points = {}  # (date, name) -> {queue: rank}
+    replaced = set()  # (name, queue) pairs whose page was found: only those values are replaced
     for player in players:
-        game_name, _, tag = player["slug"].rpartition("-")
-        page = pages_dir / f"{game_name}#{tag} (NA) - LeagueOfGraphs.html"
-        if not page.exists():
-            print(f"{player['name']:>8}: no saved page ({page.name}), skipped")
-            continue
-        html = page.read_text(encoding="utf-8", errors="replace")
-        parsed.add(player["name"])
+        # Main account covers both queues unless a separate solo account exists.
+        pages = [(page_name(player["slug"], player.get("region", "na")),
+                  {"flex"} if player.get("soloSlug") else {"flex", "solo"})]
+        if player.get("soloSlug"):
+            pages.append((page_name(player["soloSlug"], player.get("soloRegion", player.get("region", "na"))),
+                          {"solo"}))
         counts = {}
-        for graph_id, queue in QUEUES.items():
-            latest = {}  # date -> (ts, rank): keep the last snapshot per day
-            for date, ts, rank in graph_points(html, graph_id):
-                if SEASON_START_MS <= ts and date < OWN_DATA_FROM and latest.get(date, (0,))[0] < ts:
-                    latest[date] = (ts, rank)
-            counts[queue] = len(latest)
-            for date, (_, rank) in latest.items():
-                row = new_rows.setdefault((date, player["name"]),
-                                          {"date": date, "name": player["name"], "flex": None,
-                                           "solo": None, "source": "leagueofgraphs"})
-                row[queue] = rank
-        print(f"{player['name']:>8}: {counts.get('solo', 0)} solo days, {counts.get('flex', 0)} flex days")
+        for name, wanted_queues in pages:
+            page = pages_dir / name
+            if not page.exists():
+                print(f"{player['name']:>8}: no saved page ({name}), skipped")
+                continue
+            html = page.read_text(encoding="utf-8", errors="replace")
+            for graph_id, queue in QUEUES.items():
+                if queue not in wanted_queues:
+                    continue
+                replaced.add((player["name"], queue))
+                latest = {}  # date -> (ts, rank): keep the last snapshot per day
+                for date, ts, rank in graph_points(html, graph_id):
+                    if SEASON_START_MS <= ts and date < OWN_DATA_FROM and latest.get(date, (0,))[0] < ts:
+                        latest[date] = (ts, rank)
+                counts[queue] = len(latest)
+                for date, (_, rank) in latest.items():
+                    new_points.setdefault((date, player["name"]), {})[queue] = rank
+        if counts:
+            print(f"{player['name']:>8}: {counts.get('solo', 0)} solo days, {counts.get('flex', 0)} flex days")
 
-    kept = [row for row in map(json.loads, filter(str.strip, RANKS.read_text().splitlines()))
-            if row.get("source") != "leagueofgraphs" or row["name"] not in parsed]
-    rows = sorted(kept + list(new_rows.values()), key=lambda r: (r["date"], r["name"]))
+    riot_rows, merged = [], {}  # merged: (date, name) -> backfill row
+    for row in map(json.loads, filter(str.strip, RANKS.read_text().splitlines())):
+        if row.get("source") != "leagueofgraphs":
+            riot_rows.append(row)
+            continue
+        for queue in ("flex", "solo"):
+            if (row["name"], queue) in replaced:
+                row[queue] = None
+        merged[(row["date"], row["name"])] = row
+    for (date, name), queues in new_points.items():
+        row = merged.setdefault((date, name), {"date": date, "name": name, "flex": None,
+                                               "solo": None, "source": "leagueofgraphs"})
+        row.update(queues)
+    backfill = [row for row in merged.values() if row["flex"] or row["solo"]]
+    rows = sorted(riot_rows + backfill, key=lambda r: (r["date"], r["name"]))
     with RANKS.open("w") as f:
         for row in rows:
             f.write(json.dumps(row) + "\n")
-    print(f"\nMerged {len(new_rows)} backfilled rows into {RANKS.relative_to(REPO)} ({len(rows)} total).")
+    print(f"\n{len(backfill)} backfill rows in {RANKS.relative_to(REPO)} ({len(rows)} total).")
 
 
 if __name__ == "__main__":

@@ -26,7 +26,9 @@ def main():
     args = ap.parse_args()
 
     players = json.loads(PLAYERS.read_text())
-    puuid = next(p["puuid"] for p in players if p["name"] == args.player)
+    player = next(p for p in players if p["name"] == args.player)
+    # Solo games may be on a separate account (soloPuuid).
+    puuid = player.get("soloPuuid") if args.queue == "solo" and player.get("soloPuuid") else player["puuid"]
     rows = [json.loads(line) for line in MATCHES.read_text().splitlines() if line.strip()]
     games = [r for r in rows if r["name"] == args.player and r["queue"] == args.queue
              and r["champion"] == args.champion and r["duration"] >= 300]

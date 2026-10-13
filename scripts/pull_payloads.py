@@ -35,8 +35,10 @@ def main():
                      and not (RAW / f"{r['matchId']}.json").exists()})
     print(f"{len(wanted)} payloads to fetch")
     riot = Riot()
+    # Regional routing from the match id's platform prefix (e.g. NA1_, OC1_).
+    prefix_region = {"NA1": "na", "OC1": "oce"}
     for match_id in wanted:
-        match = riot.match(match_id)
+        match = riot.match(match_id, prefix_region.get(match_id.split("_")[0], "na"))
         if match:
             (RAW / f"{match_id}.json").write_text(json.dumps(match, separators=(",", ":")) + "\n")
             print(match_id)

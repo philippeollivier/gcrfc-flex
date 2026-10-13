@@ -33,6 +33,11 @@ def ensure_puuids(riot, players):
             name, tag = split_riot_id(player["slug"])
             player["puuid"] = riot.puuid(name, tag, player.get("region", "na"))
             changed = True
+        # Optional separate solo-queue account (soloSlug/soloRegion/soloPuuid).
+        if player.get("soloSlug") and not player.get("soloPuuid"):
+            name, tag = split_riot_id(player["soloSlug"])
+            player["soloPuuid"] = riot.puuid(name, tag, player.get("soloRegion", player.get("region", "na")))
+            changed = True
     if changed:
         PLAYERS.write_text(json.dumps(players, indent=2) + "\n")
     return players
@@ -53,7 +58,13 @@ def entry_to_rank(entry):
 
 def pull(riot, player):
     entries = {e["queueType"]: e for e in riot.league_entries(player["puuid"], player.get("region", "na"))}
-    return {q: entry_to_rank(entries.get(qt)) for q, qt in QUEUES.items()}
+    queues = {q: entry_to_rank(entries.get(qt)) for q, qt in QUEUES.items()}
+    if player.get("soloPuuid"):
+        # Solo rank comes from the player's separate solo-queue account.
+        solo = {e["queueType"]: e for e in riot.league_entries(
+            player["soloPuuid"], player.get("soloRegion", player.get("region", "na")))}
+        queues["solo"] = entry_to_rank(solo.get(QUEUES["solo"]))
+    return queues
 
 
 def fmt(rank):

@@ -41,9 +41,9 @@ def load_existing():
     return {(r["matchId"], r["name"]) for r in map(json.loads, MATCHES.read_text().splitlines()) if r}
 
 
-def row_for(match, player):
+def row_for(match, player, puuid):
     info = match["info"]
-    me = next(p for p in info["participants"] if p["puuid"] == player["puuid"])
+    me = next(p for p in info["participants"] if p["puuid"] == puuid)
     teammates = [p["puuid"] for p in info["participants"] if p["teamId"] == me["teamId"] and p["puuid"] != me["puuid"]]
     start = datetime.datetime.fromtimestamp(info["gameStartTimestamp"] / 1000, datetime.timezone.utc)
     return {
@@ -79,11 +79,15 @@ def main():
     existing = load_existing()
     since = int(SINCE.timestamp())
 
-    wanted = {}  # matchId -> {"players": [players needing a row], "raw": bool}
+    wanted = {}  # matchId -> {"players": [(player, puuid) needing a row], "raw": bool}
     for player in players:
-        region = player.get("region", "na")
         for queue in QUEUES:
-            for match_id in riot.match_ids(player["puuid"], region, queue=queue, start_time=since):
+            # A player may rank solo on a separate account (soloSlug/soloRegion).
+            puuid, region = player["puuid"], player.get("region", "na")
+            if QUEUES[queue] == "solo" and player.get("soloPuuid"):
+                puuid = player["soloPuuid"]
+                region = player.get("soloRegion", region)
+            for match_id in riot.match_ids(puuid, region, queue=queue, start_time=since):
                 need_row = (match_id, player["name"]) not in existing
                 full = queue in FULL_QUEUES
                 need_raw = queue in RAW_QUEUES and not (RAW / f"{match_id}.json").exists()
@@ -93,7 +97,7 @@ def main():
                     entry = wanted.setdefault(match_id, {"players": [], "raw": False, "timeline": False,
                                                          "ranks": False, "region": region})
                     if need_row:
-                        entry["players"].append(player)
+                        entry["players"].append((player, puuid))
                     entry["raw"] |= need_raw
                     entry["timeline"] |= need_timeline
                     entry["ranks"] |= need_ranks
@@ -134,8 +138,8 @@ def main():
             new_ranks += 1
             save(RAW / f"{match_id}.ranks.json", {"matchId": match_id, "pulled": datetime.date.today().isoformat(),
                                                    "participants": standings})
-        for player in entry["players"]:
-            row = row_for(match, player)
+        for player, puuid in entry["players"]:
+            row = row_for(match, player, puuid)
             row["teammates"] = [by_puuid[t]["name"] for t in row["teammates"] if t in by_puuid]
             new_rows.append(row)
             print(f"{row['start'][:10]} {row['queue']:<4} {row['name']:>8} {row['champion']:<12} "
