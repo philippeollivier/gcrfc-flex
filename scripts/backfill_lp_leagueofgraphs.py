@@ -9,8 +9,9 @@ Graphs refreshed the profile, so coverage is sparse and irregular.
 
 Rows for dates before our own tracking began (2026-08-19) are merged into
 data/ranks.jsonl, marked "source": "leagueofgraphs", with wins/losses null
-(League of Graphs does not expose historical W/L). Re-running replaces all
-previously backfilled rows, so it is idempotent.
+(League of Graphs does not expose historical W/L). Re-running replaces the
+backfilled rows of players whose page is present and leaves everyone else's
+untouched, so pages can be supplied a few at a time.
 
     python3 scripts/backfill_lp_leagueofgraphs.py ~/Downloads
 """
@@ -70,6 +71,7 @@ def main():
     players = json.loads(PLAYERS.read_text())
 
     new_rows = {}  # (date, name) -> row
+    parsed = set()  # players whose page was found: only their old rows are replaced
     for player in players:
         game_name, _, tag = player["slug"].rpartition("-")
         page = pages_dir / f"{game_name}#{tag} (NA) - LeagueOfGraphs.html"
@@ -77,6 +79,7 @@ def main():
             print(f"{player['name']:>8}: no saved page ({page.name}), skipped")
             continue
         html = page.read_text(encoding="utf-8", errors="replace")
+        parsed.add(player["name"])
         counts = {}
         for graph_id, queue in QUEUES.items():
             latest = {}  # date -> (ts, rank): keep the last snapshot per day
@@ -91,8 +94,8 @@ def main():
                 row[queue] = rank
         print(f"{player['name']:>8}: {counts.get('solo', 0)} solo days, {counts.get('flex', 0)} flex days")
 
-    kept = [json.loads(line) for line in RANKS.read_text().splitlines()
-            if line.strip() and json.loads(line).get("source") != "leagueofgraphs"]
+    kept = [row for row in map(json.loads, filter(str.strip, RANKS.read_text().splitlines()))
+            if row.get("source") != "leagueofgraphs" or row["name"] not in parsed]
     rows = sorted(kept + list(new_rows.values()), key=lambda r: (r["date"], r["name"]))
     with RANKS.open("w") as f:
         for row in rows:
