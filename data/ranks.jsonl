@@ -510,3 +510,11 @@
 {"date": "2026-10-17", "name": "David", "flex": {"tier": "gold", "division": 3, "lp": 2, "wins": 61, "losses": 58}, "solo": {"tier": "platinum", "division": 3, "lp": 27, "wins": 100, "losses": 101}}
 {"date": "2026-10-17", "name": "Evan", "flex": {"tier": "platinum", "division": 3, "lp": 58, "wins": 44, "losses": 38}, "solo": {"tier": "platinum", "division": 1, "lp": 46, "wins": 122, "losses": 112}}
 {"date": "2026-10-17", "name": "Kevin", "flex": {"tier": "gold", "division": 1, "lp": 59, "wins": 12, "losses": 8}, "solo": null}
+{"date": "2026-10-18", "name": "Phil", "flex": {"tier": "diamond", "division": 4, "lp": 62, "wins": 28, "losses": 30}, "solo": {"tier": "master", "division": null, "lp": 654, "wins": 98, "losses": 73}}
+{"date": "2026-10-18", "name": "Adriene", "flex": {"tier": "emerald", "division": 1, "lp": 60, "wins": 26, "losses": 25}, "solo": {"tier": "emerald", "division": 3, "lp": 46, "wins": 50, "losses": 37}}
+{"date": "2026-10-18", "name": "Matthew", "flex": {"tier": "emerald", "division": 2, "lp": 90, "wins": 38, "losses": 34}, "solo": {"tier": "platinum", "division": 3, "lp": 81, "wins": 22, "losses": 16}}
+{"date": "2026-10-18", "name": "Manuel", "flex": {"tier": "platinum", "division": 1, "lp": 62, "wins": 51, "losses": 40}, "solo": {"tier": "platinum", "division": 3, "lp": 49, "wins": 41, "losses": 36}}
+{"date": "2026-10-18", "name": "Erica", "flex": {"tier": "gold", "division": 3, "lp": 63, "wins": 49, "losses": 49}, "solo": {"tier": "platinum", "division": 3, "lp": 99, "wins": 111, "losses": 99}}
+{"date": "2026-10-18", "name": "David", "flex": {"tier": "gold", "division": 3, "lp": 2, "wins": 61, "losses": 58}, "solo": {"tier": "platinum", "division": 3, "lp": 27, "wins": 100, "losses": 101}}
+{"date": "2026-10-18", "name": "Evan", "flex": {"tier": "platinum", "division": 3, "lp": 58, "wins": 44, "losses": 38}, "solo": {"tier": "platinum", "division": 1, "lp": 44, "wins": 123, "losses": 113}}
+{"date": "2026-10-18", "name": "Kevin", "flex": {"tier": "gold", "division": 1, "lp": 59, "wins": 12, "losses": 8}, "solo": null}
