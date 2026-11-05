@@ -1,0 +1,46 @@
+name: Backfill solo rank sidecars (targeted)
+
+on:
+  workflow_dispatch:
+    inputs:
+      player:
+        description: "Roster name"
+        default: "Phil"
+      wins_only:
+        description: "true = only that player's wins"
+        default: "true"
+
+permissions:
+  contents: write
+
+# Shares the pull-ranks group so it never races the regular sweep.
+concurrency:
+  group: pull-ranks
+  cancel-in-progress: false
+
+jobs:
+  backfill:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Backfill sidecars
+        env:
+          RIOT_API_KEY: ${{ secrets.RIOT_API_KEY }}
+        run: |
+          python3 scripts/backfill_solo_ranks.py --player "${{ inputs.player }}" \
+            ${{ inputs.wins_only == 'true' && '--wins-only' || '' }}
+
+      - name: Commit and push
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/matches/
+          git diff --cached --quiet && { echo "No new sidecars"; exit 0; }
+          git commit -m "Solo rank sidecars: ${{ inputs.player }} (wins_only=${{ inputs.wins_only }})"
+          git push
