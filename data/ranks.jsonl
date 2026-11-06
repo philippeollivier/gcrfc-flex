@@ -662,3 +662,11 @@
 {"date": "2026-11-05", "name": "David", "flex": {"tier": "gold", "division": 3, "lp": 37, "wins": 67, "losses": 63}, "solo": {"tier": "platinum", "division": 4, "lp": 62, "wins": 101, "losses": 105}}
 {"date": "2026-11-05", "name": "Evan", "flex": {"tier": "emerald", "division": 4, "lp": 69, "wins": 61, "losses": 47}, "solo": {"tier": "emerald", "division": 4, "lp": 96, "wins": 171, "losses": 153}}
 {"date": "2026-11-05", "name": "Kevin", "flex": {"tier": "platinum", "division": 2, "lp": 41, "wins": 28, "losses": 21}, "solo": null}
+{"date": "2026-11-06", "name": "Phil", "flex": {"tier": "diamond", "division": 3, "lp": 21, "wins": 33, "losses": 33}, "solo": {"tier": "master", "division": null, "lp": 531, "wins": 135, "losses": 116}}
+{"date": "2026-11-06", "name": "Adriene", "flex": {"tier": "diamond", "division": 4, "lp": 6, "wins": 30, "losses": 28}, "solo": {"tier": "emerald", "division": 2, "lp": 11, "wins": 55, "losses": 39}}
+{"date": "2026-11-06", "name": "Matthew", "flex": {"tier": "diamond", "division": 4, "lp": 4, "wins": 44, "losses": 37}, "solo": {"tier": "platinum", "division": 2, "lp": 87, "wins": 26, "losses": 17}}
+{"date": "2026-11-06", "name": "Manuel", "flex": {"tier": "emerald", "division": 4, "lp": 43, "wins": 58, "losses": 46}, "solo": {"tier": "platinum", "division": 2, "lp": 23, "wins": 54, "losses": 46}}
+{"date": "2026-11-06", "name": "Erica", "flex": {"tier": "gold", "division": 1, "lp": 21, "wins": 66, "losses": 60}, "solo": {"tier": "platinum", "division": 3, "lp": 24, "wins": 139, "losses": 133}}
+{"date": "2026-11-06", "name": "David", "flex": {"tier": "gold", "division": 3, "lp": 37, "wins": 67, "losses": 63}, "solo": {"tier": "platinum", "division": 4, "lp": 62, "wins": 101, "losses": 105}}
+{"date": "2026-11-06", "name": "Evan", "flex": {"tier": "emerald", "division": 4, "lp": 69, "wins": 61, "losses": 47}, "solo": {"tier": "emerald", "division": 4, "lp": 76, "wins": 171, "losses": 154}}
+{"date": "2026-11-06", "name": "Kevin", "flex": {"tier": "platinum", "division": 2, "lp": 41, "wins": 28, "losses": 21}, "solo": null}
