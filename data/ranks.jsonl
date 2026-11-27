@@ -830,3 +830,11 @@
 {"date": "2026-11-26", "name": "David", "flex": {"tier": "gold", "division": 1, "lp": 25, "wins": 81, "losses": 69}, "solo": {"tier": "platinum", "division": 4, "lp": 0, "wins": 121, "losses": 126}}
 {"date": "2026-11-26", "name": "Evan", "flex": {"tier": "emerald", "division": 3, "lp": 84, "wins": 71, "losses": 54}, "solo": {"tier": "emerald", "division": 4, "lp": 36, "wins": 189, "losses": 176}}
 {"date": "2026-11-26", "name": "Kevin", "flex": {"tier": "platinum", "division": 2, "lp": 9, "wins": 31, "losses": 28}, "solo": {"tier": "bronze", "division": 1, "lp": 10, "wins": 2, "losses": 3}}
+{"date": "2026-11-27", "name": "Phil", "flex": {"tier": "diamond", "division": 3, "lp": 25, "wins": 36, "losses": 36}, "solo": {"tier": "master", "division": null, "lp": 556, "wins": 181, "losses": 163}}
+{"date": "2026-11-27", "name": "Adriene", "flex": {"tier": "diamond", "division": 4, "lp": 0, "wins": 30, "losses": 32}, "solo": {"tier": "emerald", "division": 2, "lp": 84, "wins": 76, "losses": 58}}
+{"date": "2026-11-27", "name": "Matthew", "flex": {"tier": "diamond", "division": 4, "lp": 4, "wins": 44, "losses": 37}, "solo": {"tier": "emerald", "division": 4, "lp": 13, "wins": 33, "losses": 22}}
+{"date": "2026-11-27", "name": "Manuel", "flex": {"tier": "emerald", "division": 4, "lp": 82, "wins": 62, "losses": 49}, "solo": {"tier": "platinum", "division": 3, "lp": 73, "wins": 72, "losses": 67}}
+{"date": "2026-11-27", "name": "Erica", "flex": {"tier": "platinum", "division": 4, "lp": 46, "wins": 76, "losses": 66}, "solo": {"tier": "platinum", "division": 4, "lp": 56, "wins": 165, "losses": 161}}
+{"date": "2026-11-27", "name": "David", "flex": {"tier": "gold", "division": 1, "lp": 25, "wins": 81, "losses": 69}, "solo": {"tier": "platinum", "division": 4, "lp": 0, "wins": 121, "losses": 126}}
+{"date": "2026-11-27", "name": "Evan", "flex": {"tier": "emerald", "division": 3, "lp": 84, "wins": 71, "losses": 54}, "solo": {"tier": "emerald", "division": 4, "lp": 36, "wins": 189, "losses": 176}}
+{"date": "2026-11-27", "name": "Kevin", "flex": {"tier": "platinum", "division": 2, "lp": 9, "wins": 31, "losses": 28}, "solo": {"tier": "bronze", "division": 1, "lp": 10, "wins": 2, "losses": 3}}
